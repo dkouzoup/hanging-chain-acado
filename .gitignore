@@ -1,3 +1,10 @@
 
 # mac
 *.DS_Store
+
+# matlab
+*.m~
+*.mex*
+
+# loggings
+code/loggings_*.mat
