@@ -13,3 +13,6 @@
 [submodule "external/qpDUNES-dev"]
 	path = external/qpDUNES-dev
 	url = https://github.com/qpDUNES/qpDUNES-dev.git
+[submodule "external/acado-dev"]
+	path = external/acado-dev
+	url = https://github.com/dkouzoup/acado.git
