@@ -226,9 +226,9 @@ elseif contains(ACADOSOLVER,'HPMPC')
     mpc.set( 'QP_SOLVER',               'QP_HPMPC'           );
     mpc.set( 'SPARSE_QP_SOLUTION',      'SPARSE_SOLVER'      );
 
-%     if QPCONDENSINGSTEPS > 1
-%         mpc.set( 'CONDENSING_BLOCK_SIZE',  QPCONDENSINGSTEPS );
-%     end
+    if QPCONDENSINGSTEPS > 1
+        mpc.set( 'CONDENSING_BLOCK_SIZE',  QPCONDENSINGSTEPS );
+    end
 
 else
 
