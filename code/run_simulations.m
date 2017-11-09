@@ -37,10 +37,11 @@ end
 % 'qpOASES_N2'  qpOASES with N2 condensing
 % 'qpDUNES_B0'  qpDUNES with clipping
 % 'qpDUNES_BX'  qpDUNES with qpOASES and partial condensing with block size X 
-% 'HPMPC'       HPMPC (for partial condensing acado template needs to be edited ...), WORKS ONLY IF USE_ACADO_DEV == 1!
+% 'HPMPC_B0'    standard hpmpc (no partial condensing)
+% 'HPMPC_BX'    hpmpc with partial condensing with block size X
 % 'FORCES'      FORCES QP solver (if license is available)
 
-set_of_solvers = {'qpOASES_N3'}; % choose solvers
+set_of_solvers = {'HPMPC_B10'}; % choose solvers
 set_of_N       = {20 30 40};      % choose horizon length (for all solvers)
 
 sim_opts.SCENARIO    = 2;

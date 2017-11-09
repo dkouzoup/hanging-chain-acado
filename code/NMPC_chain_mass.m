@@ -76,7 +76,7 @@ if RECORD_VID
 end
 
 % extract block size from solver name
-if contains(ACADOSOLVER,'qpDUNES')
+if contains(ACADOSOLVER,'qpDUNES') || contains(ACADOSOLVER,'HPMPC')
     bpos = strfind(ACADOSOLVER,'B');
     QPCONDENSINGSTEPS = str2double(ACADOSOLVER(bpos+1:end));
     if QPCONDENSINGSTEPS ~= 0 &&(QPCONDENSINGSTEPS < 1 || mod(N,QPCONDENSINGSTEPS)~= 0)
@@ -220,10 +220,15 @@ elseif strcmp(ACADOSOLVER,'FORCES')
     mpc.set( 'QP_SOLVER',           'QP_FORCES'              );
     mpc.set( 'SPARSE_QP_SOLUTION',  'SPARSE_SOLVER'          );
 
-elseif strcmp(ACADOSOLVER,'HPMPC')
+    
+elseif contains(ACADOSOLVER,'HPMPC')
 
-    mpc.set( 'QP_SOLVER',      'QP_HPMPC'                    );
-    mpc.set( 'SPARSE_QP_SOLUTION',  'SPARSE_SOLVER'          );
+    mpc.set( 'QP_SOLVER',               'QP_HPMPC'           );
+    mpc.set( 'SPARSE_QP_SOLUTION',      'SPARSE_SOLVER'      );
+
+%     if QPCONDENSINGSTEPS > 1
+%         mpc.set( 'CONDENSING_BLOCK_SIZE',  QPCONDENSINGSTEPS );
+%     end
 
 else
 
