@@ -311,12 +311,11 @@ for iRUNS = 1:NRUNS
     % weights
     % input.W  = blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)), 0.05*eye(3));
     % input.WN = blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)));
-    input.W  = blkdiag(20*eye(3), 0.01*eye(length(x)), 1*eye(length(v)), 0.01*eye(3));
-    input.WN = blkdiag(20*eye(3), 0.01*eye(length(x)), 1*eye(length(v)));
+    input.W  = blkdiag(25*eye(3), 25*eye(length(x)), 1*eye(length(v)), 0.01*eye(3));
+    input.WN = blkdiag(25*eye(3), 25*eye(length(x)), 1*eye(length(v)));
 
-    if NRUNS > 1
-        clear mex %#ok<CLMEX>
-    end
+    % clear mex memory for acado solver
+    clear mex %#ok<CLMEX>
 
     while time(end) < Tf
 
