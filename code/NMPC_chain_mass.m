@@ -95,42 +95,55 @@ A1 = zeros(3,3);
 B1 = eye(3,3);
 
 % Compute the spring forces:
-g = acado.Expression([0; 0; -9.81]);
-f = is(repmat(g, M, 1));
-Force = [];
-for i = 1:M+1
-    if i == 1
-        dist = is(x((i-1)*3+1:i*3) - x0);
-    elseif( i <= M )
-        dist = is(x((i-1)*3+1:i*3) - x((i-2)*3+1:(i-1)*3));
-    else
-        dist = is(xEnd - x((M-1)*3+1:end));
-    end
+% g = acado.Expression([0; 0; -9.81]);
+% f = is(repmat(g, M, 1));
+% Force = [];
+% for i = 1:M+1
+%     if i == 1
+%         dist = is(x((i-1)*3+1:i*3) - x0);
+%     elseif( i <= M )
+%         dist = is(x((i-1)*3+1:i*3) - x((i-2)*3+1:(i-1)*3));
+%     else
+%         dist = is(xEnd - x((M-1)*3+1:end));
+%     end
+% 
+%     scale = D/m*(1-L/norm(dist));
+%     F = is(scale*dist);
+% 
+%     Force = [Force; F];
+% 
+%     % mass on the right
+%     if i < M+1
+%         f((i-1)*3+1:i*3) = f((i-1)*3+1:i*3) - F;
+%     end
+%     % mass on the left
+%     if i > 1
+%         f((i-2)*3+1:(i-1)*3) = f((i-2)*3+1:(i-1)*3) + F;
+%     end
+% end
+% 
+% ode = [     dot(x) == v; ... 
+%             dot(v) == f]
 
-    scale = D/m*(1-L/norm(dist));
-    F = is(scale*dist);
+ode_rhs = acado.Expression(zeros(3*M, 1));
+ode_rhs = chain_dynamics(x, v, xEnd, L, D, m, M, x0, ode_rhs);
 
-    Force = [Force; F];
+ode = [ dot(x) == ode_rhs(1:3*M); ...
+        dot(v) == ode_rhs(3*M+1:2*3*M)];
 
-    % mass on the right
-    if i < M+1
-        f((i-1)*3+1:i*3) = f((i-1)*3+1:i*3) - F;
-    end
-    % mass on the left
-    if i > 1
-        f((i-2)*3+1:(i-1)*3) = f((i-2)*3+1:(i-1)*3) + F;
-    end
-end
+% compute rest position  
+ref_x = fsolve(@(x)chain_dynamics(x, zeros(3*M, 1), [1; 0; 0], L, D, m, M, x0, zeros(3*M,1)), [1:3*M].');
 
-ode = [ dot(x) == v; ...
-        dot(v) == f ];
+fsolve_ref = [[1; 0; 0]; ref_x; zeros(3*M, 1)];
+
+for i = 1:M
 
 %% SIMexport
 
 acadoSet('problemname', 'sim');
 
-sim = acado.SIMexport( Ts );
-sim.setLinearInput(A1,B1);
+sim = acado.SIMexport(Ts);
+sim.setLinearInput(A1, B1);
 sim.setModel(ode);
 sim.set( 'INTEGRATOR_TYPE',        'INT_IRK_GL2' );
 sim.set( 'NUM_INTEGRATOR_STEPS',        2        );
@@ -295,15 +308,21 @@ for iRUNS = 1:NRUNS
 
     eval(['ref = textread(' '''' 'chain_mass' filesep 'chain_mass_model_eq_M' num2str(NMASS) '.txt' '''', ', ''''' ');']);
     ref  = [ref(end-3+1:end); ref(1:end-3)]; % fix ordering convention
+    
+    % check that the computed state-steady does not deviate too much from
+    % precomputed values
+    
+    norm(ref - fsolve_ref)
+    keyboard
 
-    X0   = ref;
-    Xref = repmat(ref.',N+1,1);
+    X0   = fsolve_ref;
+    Xref = repmat(fsolve_ref.',N+1,1);
     Uref = zeros(N,NU);
 
     input.x = repmat(X0.',N+1,1);
     input.u  = Uref;
     input.y  = [Xref(1:N,:) Uref];
-    input.yN = ref.';
+    input.yN = fsolve_ref.';
 
     disp('------------------------------------------------------------------')
     disp('               Simulation Loop'                                    )
