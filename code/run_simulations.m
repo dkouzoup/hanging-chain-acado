@@ -41,16 +41,19 @@ end
 % 'HPMPC_BX'    hpmpc with partial condensing with block size X
 % 'FORCES'      FORCES QP solver (if license is available)
 
-set_of_solvers = {'HPMPC_B10'}; % choose solvers
-set_of_N       = {20 30 40};      % choose horizon length (for all solvers)
+set_of_solvers = {'FORCES'}; % choose solvers
+% set_of_N       = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};      % choose horizon length (for all solvers)
+set_of_N       = {10};      % choose horizon length (for all solvers)
 
 sim_opts.SCENARIO    = 2;
-sim_opts.NMASS       = 6; 
-sim_opts.NRUNS       = 5;
+sim_opts.NMASS       = 4; 
+sim_opts.NRUNS       = 1;
 sim_opts.MPC_EXPORT  = 1;
 sim_opts.MPC_COMPILE = 1;
 sim_opts.SIM_EXPORT  = 1;
 sim_opts.SIM_COMPILE = 1;
+sim_opts.CHECK_AGAINST_REF_SOL = 1;
+sim_opts.SOL_TOL = 1e-3;
 
 %% Run simulations
 
@@ -60,7 +63,7 @@ for jj = 1:length(set_of_solvers)
 
     sim_opts.ACADOSOLVER = set_of_solvers{jj};
 
-    sim_opts.VISUAL = 1;
+    sim_opts.VISUAL = 0;
 
     for ii = 1:length(set_of_N)
 
@@ -91,4 +94,15 @@ t(t == ' ') = '_';  % substitute spaces with underscore
 save(['loggings_' t],'loggings');
 plot_results(loggings);
 
+% if sim_opts.CHECK_AGAINST_REF_SOL
+if 1
+    max_val_err = 0;
+    for i = 1:length(loggings)
+        err = max(loggings{i}.val_accuracy);
+        if err > max_val_err
+            max_val_err = err;
+        end
+    end
+    display(['max err = ', num2str(max_val_err)])
+end
 delete_temp_files();

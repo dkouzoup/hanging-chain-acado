@@ -25,13 +25,14 @@ NRUNS         = 5;              % run closed-loop simulation NRUNS times and sto
 
 ACADOSOLVER   = 'qpDUNES_B0';   % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_N3', 'FORCES', 'HPMPC'
 
-VISUAL        = 1;              % set to 1 to visualize chain of masses (only for the first out of the NRUNS simulations)
+VISUAL        = 0;              % set to 1 to visualize chain of masses (only for the first out of the NRUNS simulations)
 
-WALL          = -0.05;          % wall position (re-export if changed)
+WALL          = -0.1;          % wall position (re-export if changed)
 
-Ts            = 0.1;            % sampling time [s]
+Ts            = 0.2;            % sampling time [s]
 
-Tf            = 5;              % final simulation time [s]
+% Tf            = 5;            % final simulation time [s]
+Tf            = 20;             % ++ change back idiot
 
 N             = 40;             % prediction horizon
 
@@ -45,12 +46,16 @@ SCENARIO      = 2;              % 1: read x0 from file and go to XREF
                                 % 2: start from XREF and overwrite uMPC until To [s]
 
 To            = 0.5;            % how many seconds to overwrite uMPC when SCENARIO == 2
-Uo            = [-1;1;0];       % value to overwrite uMPC when SCENARIO == 2
+Uo            = [-1;1;1];       % value to overwrite uMPC when SCENARIO == 2
 
 RECORD_VID    = 0;              % record avi video
 
 DETAILED_TIME = 0;              % if 1, time preparation/feedback step: ONLY WORKS FOR FORCES
 
+CHECK_AGAINST_REF_SOL = 0;      % if 1, exports and compiles reference solver (qpOASES, CN2 by default)
+
+SOL_TOL = 1e-6;                 % maximum accepted 2-norm of the deviation of the solution from the reference solution 
+                                % (only used if CHECK_AGAINST_REF_SOL = 1).
 
 %% Load simulation options and overwrite local ones
 
@@ -171,7 +176,7 @@ SN  = acado.BMatrix(eye(NX));
 
 ocp.minimizeLSQEndTerm( SN, rfN );
 
-ocp.subjectTo( WALL <= [x([2:3:end]); xEnd(2)] <= 100 ); % constraint on y-position TODO upper bound 10?
+ocp.subjectTo( WALL <= [x([2:3:end]); xEnd(2)] ); % constraint on y-position TODO upper bound 10?
 ocp.subjectTo( -1 <= u <= 1 );                          % box constraints on controls
 
 ocp.setLinearInput(A1,B1);
@@ -247,6 +252,11 @@ if exist('export_MPC', 'dir')
 end
 if MPC_EXPORT
     mpc.exportCode( 'export_MPC' );
+    if CHECK_AGAINST_REF_SOL
+        mpc.set( 'QP_SOLVER',               'QP_QPOASES'         );
+        mpc.set( 'SPARSE_QP_SOLUTION',      'FULL_CONDENSING_N2' );
+        mpc.exportCode( 'export_ref_MPC' );
+    end
 end
 
 if MPC_COMPILE
@@ -274,7 +284,8 @@ if MPC_COMPILE
     
     if contains(ACADOSOLVER, 'FORCES')
         % needed to give time to overwrite things
-        keyboard
+%         keyboard
+        pause(10)
     end
     if DETAILED_TIME
         make_timing_forces('../acado_MPCstep')
@@ -282,7 +293,15 @@ if MPC_COMPILE
         make_acado_solver('../acado_MPCstep')
     end
     cd ..
+    
+    if CHECK_AGAINST_REF_SOL
+        cd export_ref_MPC
+        waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'acado-dev' filesep 'external_packages' filesep 'qpoases'], 'qpoases'));
+        make_acado_solver('../acado_ref_MPCstep')
+        cd ..
+    end
 end
+
 
 %% Closed loop simulations
 
@@ -328,6 +347,8 @@ for iRUNS = 1:NRUNS
     ACADOtLog     = [];  % log timings of solver
     ACADOoutputs  = {};  % log all ACADO outputs
     ACADOnIter    = [];  % log iterations (if available)
+    sol_accuracy  = [];  % log accuracy (deviation from reference solution) of the solution (if available)
+    val_accuracy  = [];  % log accuracy (deviation from reference obj value) of the solution (if available)
 
     if DETAILED_TIME
         ACADOtprepLog = [];  % log preparation times
@@ -338,8 +359,8 @@ for iRUNS = 1:NRUNS
     end
 
     % weights % TODO MOVE UP TO OPTIONS
-    input.W  = blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)), 0.05*eye(3));
-    input.WN = blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)));
+    input.W  = 10*blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)), 0.05*eye(3));
+    input.WN = 10*blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)));
 
     if NRUNS > 1
         clear mex %#ok<CLMEX>
@@ -350,6 +371,20 @@ for iRUNS = 1:NRUNS
         % Solve NMPC OCP with ACADO
         input.x0 = state_sim(end,:);
         output   = acado_MPCstep(input);
+        
+        if CHECK_AGAINST_REF_SOL
+            ref_output = acado_ref_MPCstep(input);
+            sol_err = max(norm(output.x - ref_output.x, Inf), norm(output.u - ref_output.u, Inf));
+            val_err = abs(output.info.objValue - ref_output.info.objValue)/max(1, ref_output.info.objValue);
+            if sol_err > SOL_TOL || val_err > SOL_TOL              
+%                 keyboard
+                warning(['failed to meet accuracy of ', num2str(SOL_TOL), '( sol_err = ', ...
+                    num2str(sol_err), ', val_err = ', num2str(val_err), ')' ])
+            end
+            
+            sol_accuracy = [sol_accuracy sol_err];
+            val_accuracy = [val_accuracy val_err];
+        end
 
         if output.info.status ~= 1 &&  output.info.status ~= 0
             warning('MPC STEP FAILED')
@@ -387,7 +422,7 @@ for iRUNS = 1:NRUNS
                 sim_input.u = Uo;
             end
         end
-        [states,outputs] = integrate_chain(sim_input);
+        [states, outputs] = integrate_chain(sim_input);
 
         state_sim = [state_sim; states.value'];
         iter      = iter + 1;
@@ -449,17 +484,19 @@ if exist('sim_opts','var')
 end
 
 % store simulation information
-logging.solver  = ACADOSOLVER;
-logging.wall    = WALL;
-logging.Ts      = Ts;
-logging.N       = N;
-logging.Nmass   = NMASS;
-logging.init    = INITMODE;
-logging.nruns   = NRUNS;
-logging.cputime = minACADOtLog;
-logging.iters   = ACADOnIter;
-logging.outputs = ACADOoutputs;
-logging.Nblock  = QPCONDENSINGSTEPS;
+logging.solver      = ACADOSOLVER;
+logging.wall        = WALL;
+logging.Ts          = Ts;
+logging.N           = N;
+logging.Nmass       = NMASS;
+logging.init        = INITMODE;
+logging.nruns       = NRUNS;
+logging.cputime     = minACADOtLog;
+logging.iters       = ACADOnIter;
+logging.outputs     = ACADOoutputs;
+logging.Nblock      = QPCONDENSINGSTEPS;
+logging.sol_accuracy    = sol_accuracy;  
+logging.val_accuracy    = val_accuracy;  
 
 if DETAILED_TIME
    logging.prepTime = ACADOtprepLog;
