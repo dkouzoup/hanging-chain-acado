@@ -36,7 +36,7 @@ end
 % 'qpOASES_N3'  qpOASES with N3 condensing
 % 'qpOASES_N2'  qpOASES with N2 condensing
 % 'qpDUNES_B0'  qpDUNES with clipping
-% 'qpDUNES_BX'  qpDUNES with qpOASES and partial condensing with block size X 
+% 'qpDUNES_BX'  qpDUNES with qpOASES and partial condensing with block size X
 % 'HPMPC_B0'    standard hpmpc (no partial condensing)
 % 'HPMPC_BX'    hpmpc with partial condensing with block size X
 % 'FORCES'      FORCES QP solver (if license is available)
@@ -45,9 +45,8 @@ set_of_solvers = {'FORCES'}; % choose solvers
 % set_of_N       = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};      % choose horizon length (for all solvers)
 set_of_N       = {10};      % choose horizon length (for all solvers)
 
-sim_opts.SCENARIO    = 2;
-sim_opts.NMASS       = 4; 
-sim_opts.NRUNS       = 1;
+sim_opts.NMASS       = 6;
+sim_opts.NRUNS       = 5;
 sim_opts.MPC_EXPORT  = 1;
 sim_opts.MPC_COMPILE = 1;
 sim_opts.SIM_EXPORT  = 1;
