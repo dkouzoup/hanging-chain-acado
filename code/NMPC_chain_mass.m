@@ -25,13 +25,14 @@ NRUNS         = 5;              % run closed-loop simulation NRUNS times and sto
 
 ACADOSOLVER   = 'qpDUNES_B0';   % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_N3', 'FORCES', 'HPMPC'
 
-VISUAL        = 1;              % set to 1 to visualize chain of masses (only for the first out of the NRUNS simulations)
+VISUAL        = 0;              % set to 1 to visualize chain of masses (only for the first out of the NRUNS simulations)
 
 WALL          = -0.1;           % wall position (re-export if changed)
 
 Ts            = 0.2;            % sampling time [s]
 
-Tf            = 5;              % final simulation time [s]
+% Tf            = 5;            % final simulation time [s]
+Tf            = 20;             % ++ change back idiot
 
 N             = 40;             % prediction horizon
 
@@ -43,6 +44,10 @@ Uo            = [-1;1;1];       % value to overwrite uMPC
 
 DETAILED_TIME = 0;              % if 1, time preparation/feedback step: ONLY WORKS FOR FORCES
 
+CHECK_AGAINST_REF_SOL = 0;      % if 1, exports and compiles reference solver (qpOASES, CN2 by default)
+
+SOL_TOL = 1e-6;                 % maximum accepted 2-norm of the deviation of the solution from the reference solution
+                                % (only used if CHECK_AGAINST_REF_SOL = 1).
 
 %% Load simulation options and overwrite local ones
 
@@ -90,42 +95,55 @@ A1 = zeros(3,3);
 B1 = eye(3,3);
 
 % Compute the spring forces:
-g = acado.Expression([0; 0; -9.81]);
-f = is(repmat(g, M, 1));
-Force = [];
-for i = 1:M+1
-    if i == 1
-        dist = is(x((i-1)*3+1:i*3) - x0);
-    elseif( i <= M )
-        dist = is(x((i-1)*3+1:i*3) - x((i-2)*3+1:(i-1)*3));
-    else
-        dist = is(xEnd - x((M-1)*3+1:end));
-    end
+% g = acado.Expression([0; 0; -9.81]);
+% f = is(repmat(g, M, 1));
+% Force = [];
+% for i = 1:M+1
+%     if i == 1
+%         dist = is(x((i-1)*3+1:i*3) - x0);
+%     elseif( i <= M )
+%         dist = is(x((i-1)*3+1:i*3) - x((i-2)*3+1:(i-1)*3));
+%     else
+%         dist = is(xEnd - x((M-1)*3+1:end));
+%     end
+% 
+%     scale = D/m*(1-L/norm(dist));
+%     F = is(scale*dist);
+% 
+%     Force = [Force; F];
+% 
+%     % mass on the right
+%     if i < M+1
+%         f((i-1)*3+1:i*3) = f((i-1)*3+1:i*3) - F;
+%     end
+%     % mass on the left
+%     if i > 1
+%         f((i-2)*3+1:(i-1)*3) = f((i-2)*3+1:(i-1)*3) + F;
+%     end
+% end
+% 
+% ode = [     dot(x) == v; ... 
+%             dot(v) == f]
 
-    scale = D/m*(1-L/norm(dist));
-    F = is(scale*dist);
+ode_rhs = acado.Expression(zeros(3*M, 1));
+ode_rhs = chain_dynamics(x, v, xEnd, L, D, m, M, x0, ode_rhs);
 
-    Force = [Force; F];
+ode = [ dot(x) == ode_rhs(1:3*M); ...
+        dot(v) == ode_rhs(3*M+1:2*3*M)];
 
-    % mass on the right
-    if i < M+1
-        f((i-1)*3+1:i*3) = f((i-1)*3+1:i*3) - F;
-    end
-    % mass on the left
-    if i > 1
-        f((i-2)*3+1:(i-1)*3) = f((i-2)*3+1:(i-1)*3) + F;
-    end
-end
+% compute rest position  
+ref_x = fsolve(@(x)chain_dynamics(x, zeros(3*M, 1), [1; 0; 0], L, D, m, M, x0, zeros(3*M,1)), [1:3*M].');
 
-ode = [ dot(x) == v; ...
-        dot(v) == f ];
+fsolve_ref = [[1; 0; 0]; ref_x; zeros(3*M, 1)];
+
+for i = 1:M
 
 %% SIMexport
 
 acadoSet('problemname', 'sim');
 
-sim = acado.SIMexport( Ts );
-sim.setLinearInput(A1,B1);
+sim = acado.SIMexport(Ts);
+sim.setLinearInput(A1, B1);
 sim.setModel(ode);
 sim.set( 'INTEGRATOR_TYPE',        'INT_IRK_GL2' );
 sim.set( 'NUM_INTEGRATOR_STEPS',        2        );
@@ -204,7 +222,7 @@ elseif strcmp(ACADOSOLVER,'FORCES')
     mpc.set( 'QP_SOLVER',           'QP_FORCES'              );
     mpc.set( 'SPARSE_QP_SOLUTION',  'SPARSE_SOLVER'          );
 
-    
+
 elseif contains(ACADOSOLVER,'HPMPC')
 
     mpc.set( 'QP_SOLVER',               'QP_HPMPC'           );
@@ -231,6 +249,11 @@ if exist('export_MPC', 'dir')
 end
 if MPC_EXPORT
     mpc.exportCode( 'export_MPC' );
+    if CHECK_AGAINST_REF_SOL
+        mpc.set( 'QP_SOLVER',               'QP_QPOASES'         );
+        mpc.set( 'SPARSE_QP_SOLUTION',      'FULL_CONDENSING_N2' );
+        mpc.exportCode( 'export_ref_MPC' );
+    end
 end
 
 if MPC_COMPILE
@@ -254,11 +277,12 @@ if MPC_COMPILE
         waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'blasfeo'], 'blasfeo'));
         waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'hpmpc'], 'hpmpc'));
     end
-    
-    
+
+
     if contains(ACADOSOLVER, 'FORCES')
         % needed to give time to overwrite things
-        keyboard
+%         keyboard
+        pause(10)
     end
     if DETAILED_TIME
         make_timing_forces('../acado_MPCstep')
@@ -266,7 +290,15 @@ if MPC_COMPILE
         make_acado_solver('../acado_MPCstep')
     end
     cd ..
+
+    if CHECK_AGAINST_REF_SOL
+        cd export_ref_MPC
+        waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'acado-dev' filesep 'external_packages' filesep 'qpoases'], 'qpoases'));
+        make_acado_solver('../acado_ref_MPCstep')
+        cd ..
+    end
 end
+
 
 %% Closed loop simulations
 
@@ -276,15 +308,21 @@ for iRUNS = 1:NRUNS
 
     eval(['ref = textread(' '''' 'chain_mass' filesep 'chain_mass_model_eq_M' num2str(NMASS) '.txt' '''', ', ''''' ');']);
     ref  = [ref(end-3+1:end); ref(1:end-3)]; % fix ordering convention
+    
+    % check that the computed state-steady does not deviate too much from
+    % precomputed values
+    
+    norm(ref - fsolve_ref)
+    keyboard
 
-    X0   = ref;
-    Xref = repmat(ref.',N+1,1);
+    X0   = fsolve_ref;
+    Xref = repmat(fsolve_ref.',N+1,1);
     Uref = zeros(N,NU);
 
     input.x = repmat(X0.',N+1,1);
     input.u  = Uref;
     input.y  = [Xref(1:N,:) Uref];
-    input.yN = ref.';
+    input.yN = fsolve_ref.';
 
     disp('------------------------------------------------------------------')
     disp('               Simulation Loop'                                    )
@@ -299,6 +337,8 @@ for iRUNS = 1:NRUNS
     ACADOtLog     = [];  % log timings of solver
     ACADOoutputs  = {};  % log all ACADO outputs
     ACADOnIter    = [];  % log iterations (if available)
+    sol_accuracy  = [];  % log accuracy (deviation from reference solution) of the solution (if available)
+    val_accuracy  = [];  % log accuracy (deviation from reference obj value) of the solution (if available)
 
     if DETAILED_TIME
         ACADOtprepLog = [];  % log preparation times
@@ -322,6 +362,20 @@ for iRUNS = 1:NRUNS
         % Solve NMPC OCP with ACADO
         input.x0 = state_sim(end,:);
         output   = acado_MPCstep(input);
+
+        if CHECK_AGAINST_REF_SOL
+            ref_output = acado_ref_MPCstep(input);
+            sol_err = max(norm(output.x - ref_output.x, Inf), norm(output.u - ref_output.u, Inf));
+            val_err = abs(output.info.objValue - ref_output.info.objValue)/max(1, ref_output.info.objValue);
+            if sol_err > SOL_TOL || val_err > SOL_TOL
+%                 keyboard
+                warning(['failed to meet accuracy of ', num2str(SOL_TOL), '( sol_err = ', ...
+                    num2str(sol_err), ', val_err = ', num2str(val_err), ')' ])
+            end
+
+            sol_accuracy = [sol_accuracy sol_err];
+            val_accuracy = [val_accuracy val_err];
+        end
 
         if output.info.status ~= 1 &&  output.info.status ~= 0
             if time(end) < To
@@ -364,7 +418,7 @@ for iRUNS = 1:NRUNS
             % do not take these instances into account for timings
             ACADOtLog(end) = NaN;
         end
-            
+
         [states,outputs] = integrate_chain(sim_input);
 
         state_sim = [state_sim; states.value'];
@@ -375,7 +429,7 @@ for iRUNS = 1:NRUNS
         % check number of active constraints
         [nbx, nbu] = active_constraints(output, WALL, 1);
         disp(['nbx:' num2str(nbx) ' nbu:' num2str(nbu)])
-        
+
         if DETAILED_TIME
             disp(['current time: ' num2str(nextTime) '   ' char(9) ' (pre. step: ' num2str(output.info.preparationTime*1e3) ' ms)'])
         else
@@ -427,6 +481,8 @@ logging.cputime = minACADOtLog;
 logging.iters   = ACADOnIter;
 logging.outputs = ACADOoutputs;
 logging.Nblock  = QPCONDENSINGSTEPS;
+logging.sol_accuracy    = sol_accuracy;
+logging.val_accuracy    = val_accuracy;
 
 if DETAILED_TIME
    logging.prepTime = ACADOtprepLog;
