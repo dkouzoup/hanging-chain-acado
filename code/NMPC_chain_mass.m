@@ -31,8 +31,8 @@ WALL          = -0.1;           % wall position (re-export if changed)
 
 Ts            = 0.2;            % sampling time [s]
 
-% Tf            = 5;            % final simulation time [s]
-Tf            = 20;             % ++ change back idiot
+Tf            = 5;            % final simulation time [s]
+% Tf            = 20;             % ++ change back idiot
 
 N             = 40;             % prediction horizon
 
@@ -312,8 +312,8 @@ for iRUNS = 1:NRUNS
     % check that the computed state-steady does not deviate too much from
     % precomputed values
     
-    norm(ref - fsolve_ref)
-    keyboard
+%     norm(ref - fsolve_ref)
+%     keyboard
 
     X0   = fsolve_ref;
     Xref = repmat(fsolve_ref.',N+1,1);
