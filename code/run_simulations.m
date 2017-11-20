@@ -44,7 +44,6 @@ end
 set_of_solvers = {'HPMPC_B10'}; % choose solvers
 set_of_N       = {20 30 40};      % choose horizon length (for all solvers)
 
-sim_opts.SCENARIO    = 2;
 sim_opts.NMASS       = 6; 
 sim_opts.NRUNS       = 5;
 sim_opts.MPC_EXPORT  = 1;

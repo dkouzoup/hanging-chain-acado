@@ -27,9 +27,9 @@ ACADOSOLVER   = 'qpDUNES_B0';   % 'qpDUNES_BXX' (with XX block size, 0 for clipp
 
 VISUAL        = 1;              % set to 1 to visualize chain of masses (only for the first out of the NRUNS simulations)
 
-WALL          = -0.05;          % wall position (re-export if changed)
+WALL          = -0.1;           % wall position (re-export if changed)
 
-Ts            = 0.1;            % sampling time [s]
+Ts            = 0.2;            % sampling time [s]
 
 Tf            = 5;              % final simulation time [s]
 
@@ -37,17 +37,9 @@ N             = 40;             % prediction horizon
 
 NMASS         = 6;              % number of masses in chain (data available from 3 to 6 masses)
 
-INITMODE      = 1;              % 1: initialize lin. at X0
-                                % 2: initialize lin. at XREF
-                                % NOTE: does not make a difference if SCENARIO == 2
+To            = 5*Ts;           % how many seconds to overwrite uMPC
 
-SCENARIO      = 2;              % 1: read x0 from file and go to XREF
-                                % 2: start from XREF and overwrite uMPC until To [s]
-
-To            = 0.5;            % how many seconds to overwrite uMPC when SCENARIO == 2
-Uo            = [-1;1;0];       % value to overwrite uMPC when SCENARIO == 2
-
-RECORD_VID    = 0;              % record avi video
+Uo            = [-1;1;1];       % value to overwrite uMPC
 
 DETAILED_TIME = 0;              % if 1, time preparation/feedback step: ONLY WORKS FOR FORCES
 
@@ -66,14 +58,6 @@ if DETAILED_TIME == 1 && ~strcmp(ACADOSOLVER, 'FORCES')
 end
 
 %% Initialization
-
-% prepare video writer
-if RECORD_VID
-    % TODO why doesn't it work? (at leat on mac)
-    writerObj = VideoWriter('chain_video.avi');
-    writerObj.FrameRate = 5;
-    open(writerObj);
-end
 
 % extract block size from solver name
 if contains(ACADOSOLVER,'qpDUNES') || contains(ACADOSOLVER,'HPMPC')
@@ -171,8 +155,8 @@ SN  = acado.BMatrix(eye(NX));
 
 ocp.minimizeLSQEndTerm( SN, rfN );
 
-ocp.subjectTo( WALL <= [x([2:3:end]); xEnd(2)] <= 100 ); % constraint on y-position TODO upper bound 10?
-ocp.subjectTo( -1 <= u <= 1 );                          % box constraints on controls
+ocp.subjectTo( WALL <= [x([2:3:end]); xEnd(2)]); % state constraint on positions
+ocp.subjectTo( -1 <= u <= 1 ); % bounds on controls
 
 ocp.setLinearInput(A1,B1);
 ocp.setModel(ode);
@@ -239,7 +223,7 @@ end
 mpc.set( 'INTEGRATOR_TYPE',             'INT_IRK_GL2'        );
 mpc.set( 'NUM_INTEGRATOR_STEPS',        2*N                  );
 
-mpc.set( 'MAX_NUM_QP_ITERATIONS', 2000 );
+mpc.set( 'MAX_NUM_QP_ITERATIONS', 1000 );
 mpc.set( 'PRINTLEVEL', 'LOW' );
 
 if exist('export_MPC', 'dir')
@@ -293,24 +277,11 @@ for iRUNS = 1:NRUNS
     eval(['ref = textread(' '''' 'chain_mass' filesep 'chain_mass_model_eq_M' num2str(NMASS) '.txt' '''', ', ''''' ');']);
     ref  = [ref(end-3+1:end); ref(1:end-3)]; % fix ordering convention
 
-    if SCENARIO == 1
-        eval(['X0  = textread(' '''' 'chain_mass' filesep 'chain_mass_model_dist_M' num2str(NMASS) '.txt' '''', ', ''''' ');']);
-        X0 = [X0(end-3+1:end); X0(1:end-3)]; % fix ordering convention
-    elseif SCENARIO == 2
-        X0 = ref;
-    end
-
+    X0   = ref;
     Xref = repmat(ref.',N+1,1);
     Uref = zeros(N,NU);
 
-    if INITMODE == 1
-        input.x = repmat(X0.',N+1,1);
-    elseif INITMODE == 2
-        input.x = repmat(ref.',N+1,1);
-    else
-        error('wrong initialization flag INITMODE')
-    end
-
+    input.x = repmat(X0.',N+1,1);
     input.u  = Uref;
     input.y  = [Xref(1:N,:) Uref];
     input.yN = ref.';
@@ -337,9 +308,11 @@ for iRUNS = 1:NRUNS
         visualize;
     end
 
-    % weights % TODO MOVE UP TO OPTIONS
-    input.W  = blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)), 0.05*eye(3));
-    input.WN = blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)));
+    % weights
+    % input.W  = blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)), 0.05*eye(3));
+    % input.WN = blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)));
+    input.W  = blkdiag(20*eye(3), 0.01*eye(length(x)), 1*eye(length(v)), 0.01*eye(3));
+    input.WN = blkdiag(20*eye(3), 0.01*eye(length(x)), 1*eye(length(v)));
 
     if NRUNS > 1
         clear mex %#ok<CLMEX>
@@ -352,11 +325,16 @@ for iRUNS = 1:NRUNS
         output   = acado_MPCstep(input);
 
         if output.info.status ~= 1 &&  output.info.status ~= 0
-            warning('MPC STEP FAILED')
+            if time(end) < To
+                warning('MPC STEP FAILED WHILE DISTURBANCE IS BEING APPLIED!')
+            else
+                warning('MPC STEP FAILED!')
+            end
             output.info.cpuTime = NaN;
             keyboard
         end
 
+        % field name changed in future ACADO versions
         if isfield(output.info, 'QP_iter')
             niter = output.info.QP_iter;
         else
@@ -382,11 +360,12 @@ for iRUNS = 1:NRUNS
         sim_input.x = state_sim(end,:).';
         sim_input.u = output.u(1,:).';
 
-        if SCENARIO == 2
-            if time(end) < To
-                sim_input.u = Uo;
-            end
+        if time(end) < To
+            sim_input.u = Uo;
+            % do not take these instances into account for timings
+            ACADOtLog(end) = NaN;
         end
+            
         [states,outputs] = integrate_chain(sim_input);
 
         state_sim = [state_sim; states.value'];
@@ -394,6 +373,10 @@ for iRUNS = 1:NRUNS
         nextTime  = iter*Ts;
         time      = [time nextTime];
 
+        % check number of active constraints
+        [nbx, nbu] = active_constraints(output, WALL, 1);
+        disp(['nbx:' num2str(nbx) ' nbu:' num2str(nbu)])
+        
         if DETAILED_TIME
             disp(['current time: ' num2str(nextTime) '   ' char(9) ' (pre. step: ' num2str(output.info.preparationTime*1e3) ' ms)'])
         else
@@ -402,14 +385,6 @@ for iRUNS = 1:NRUNS
 
         if VISUAL && iRUNS == 1
             visualize;
-            if RECORD_VID
-                if ~exist('frame','var')
-                    frame(1) = getframe(gcf);
-                else
-                    frame(end+1) = getframe(gcf);
-                end
-                writeVideo(writerObj, frame(end));
-            end
         end
 
     end
@@ -431,12 +406,6 @@ for iRUNS = 1:NRUNS
 
 end
 
-if RECORD_VID
-    close(writerObj)
-    % close all
-    % movie(frame);
-end
-
 if exist('sim_opts','var')
     figure
     plot(time,1000*minACADOtLog,'lineWidth',2)
@@ -454,7 +423,6 @@ logging.wall    = WALL;
 logging.Ts      = Ts;
 logging.N       = N;
 logging.Nmass   = NMASS;
-logging.init    = INITMODE;
 logging.nruns   = NRUNS;
 logging.cputime = minACADOtLog;
 logging.iters   = ACADOnIter;
