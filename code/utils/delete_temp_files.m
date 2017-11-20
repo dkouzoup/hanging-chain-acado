@@ -21,6 +21,9 @@ end
 if exist('export_SIM', 'dir')
     rmdir('export_SIM', 's')
 end
+if exist('export_ref_MPC', 'dir')
+    rmdir('export_ref_MPC', 's')
+end
 
 end
 
