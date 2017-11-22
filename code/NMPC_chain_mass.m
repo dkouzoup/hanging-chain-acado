@@ -64,11 +64,17 @@ end
 %% Initialization
 
 % extract block size from solver name
-if contains(ACADOSOLVER,'qpDUNES') || contains(ACADOSOLVER,'HPMPC')
+if contains(ACADOSOLVER,'qpDUNES')
     bpos = strfind(ACADOSOLVER,'B');
     QPCONDENSINGSTEPS = str2double(ACADOSOLVER(bpos+1:end));
     if QPCONDENSINGSTEPS ~= 0 &&(QPCONDENSINGSTEPS < 1 || mod(N,QPCONDENSINGSTEPS)~= 0)
         error('Invalid block size for given horizon length N.')
+    end
+elseif contains(ACADOSOLVER,'HPMPC')
+    bpos = strfind(ACADOSOLVER,'B');
+    QPCONDENSINGSTEPS = str2double(ACADOSOLVER(bpos+1:end));
+    if ~(QPCONDENSINGSTEPS >=1)
+        error('Invalid block size (block size has to be >=1)')
     end
 else
     QPCONDENSINGSTEPS = [];
