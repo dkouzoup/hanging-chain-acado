@@ -45,7 +45,7 @@ end
 set_of_solvers = {'qpOASES_N2', 'HPMPC_B0'};                 % choose solvers
 set_of_N       = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};  % choose horizon length (for all solvers)
 
-sim_opts.NMASS       = 6;
+sim_opts.NMASS       = 4;
 sim_opts.NRUNS       = 5;
 sim_opts.MPC_EXPORT  = 1;
 sim_opts.MPC_COMPILE = 1;
