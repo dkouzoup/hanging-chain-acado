@@ -91,7 +91,7 @@ t = t(2:end-1);     % remove [ ]
 t(t == ' ') = '_';  % substitute spaces with underscore
 
 save(['logs' filesep 'data_' t],'loggings');
-plot_results(loggings);
+plot_logs(loggings);
 
 if sim_opts.CHECK_AGAINST_REF_SOL
     max_val_err = 0;
