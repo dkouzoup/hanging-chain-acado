@@ -73,8 +73,8 @@ if contains(ACADOSOLVER,'qpDUNES')
 elseif contains(ACADOSOLVER,'HPMPC')
     bpos = strfind(ACADOSOLVER,'B');
     QPCONDENSINGSTEPS = str2double(ACADOSOLVER(bpos+1:end));
-    if ~(QPCONDENSINGSTEPS >=1)
-        error('Invalid block size (block size has to be >=1)')
+    if ~(QPCONDENSINGSTEPS >=0)
+        error('Invalid block size (block size has to be >= 0)')
     end
 else
     QPCONDENSINGSTEPS = [];
