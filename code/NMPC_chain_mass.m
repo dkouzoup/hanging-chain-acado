@@ -25,14 +25,18 @@ NRUNS         = 5;              % run closed-loop simulation NRUNS times and sto
 
 ACADOSOLVER   = 'qpDUNES_B0';   % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_N3', 'FORCES', 'HPMPC'
 
-VISUAL        = 0;              % set to 1 to visualize chain of masses (only for the first out of the NRUNS simulations)
+VISUAL        = 1;              % set to 1 to visualize chain of masses (only for the first out of the NRUNS simulations)
 
 WALL          = -0.1;           % wall position (re-export if changed)
 
 Ts            = 0.2;            % sampling time [s]
 
+<<<<<<< HEAD
 Tf            = 5;            % final simulation time [s]
 % Tf            = 20;             % ++ change back idiot
+=======
+Tf            = 5;              % final simulation time [s]
+>>>>>>> 1acf4c8c8fd2fc89af9f941bcd486b6b774dc2ad
 
 N             = 40;             % prediction horizon
 
@@ -40,7 +44,7 @@ NMASS         = 6;              % number of masses in chain (data available from
 
 To            = 5*Ts;           % how many seconds to overwrite uMPC
 
-Uo            = [-1;1;1];       % value to overwrite uMPC
+Uo            = [-1;1;1];       % value to overwrite uMPC for To sec
 
 DETAILED_TIME = 0;              % if 1, time preparation/feedback step: ONLY WORKS FOR FORCES
 
@@ -100,49 +104,23 @@ m  = 0.03;
 A1 = zeros(3,3);
 B1 = eye(3,3);
 
-% Compute the spring forces:
-% g = acado.Expression([0; 0; -9.81]);
-% f = is(repmat(g, M, 1));
-% Force = [];
-% for i = 1:M+1
-%     if i == 1
-%         dist = is(x((i-1)*3+1:i*3) - x0);
-%     elseif( i <= M )
-%         dist = is(x((i-1)*3+1:i*3) - x((i-2)*3+1:(i-1)*3));
-%     else
-%         dist = is(xEnd - x((M-1)*3+1:end));
-%     end
-% 
-%     scale = D/m*(1-L/norm(dist));
-%     F = is(scale*dist);
-% 
-%     Force = [Force; F];
-% 
-%     % mass on the right
-%     if i < M+1
-%         f((i-1)*3+1:i*3) = f((i-1)*3+1:i*3) - F;
-%     end
-%     % mass on the left
-%     if i > 1
-%         f((i-2)*3+1:(i-1)*3) = f((i-2)*3+1:(i-1)*3) + F;
-%     end
-% end
-% 
-% ode = [     dot(x) == v; ... 
-%             dot(v) == f]
-
 ode_rhs = acado.Expression(zeros(3*M, 1));
 ode_rhs = chain_dynamics(x, v, xEnd, L, D, m, M, x0, ode_rhs);
 
 ode = [ dot(x) == ode_rhs(1:3*M); ...
         dot(v) == ode_rhs(3*M+1:2*3*M)];
 
-% compute rest position  
-ref_x = fsolve(@(x)chain_dynamics(x, zeros(3*M, 1), [1; 0; 0], L, D, m, M, x0, zeros(3*M,1)), [1:3*M].');
+% compute rest position with fsolve
 
-fsolve_ref = [[1; 0; 0]; ref_x; zeros(3*M, 1)];
+xEnd_ref = [1; 0; 0]; % position of actuated mass
 
-for i = 1:M
+[fsolve_x, ~, fsolve_flag] = fsolve(@(x)chain_dynamics(x, zeros(3*M, 1), xEnd_ref, L, D, m, M, x0, zeros(3*M,1)), (1:3*M).', optimoptions('fsolve','Algorithm','Levenberg-Marquardt', 'Display', 'off'));
+
+if fsolve_flag ~= 1
+    error(['Calculation of rest position failed. fsolve returned status ' num2str(fsolve_flag) '. Check xEnd_ref']);
+end
+
+fsolve_ref = [xEnd_ref; fsolve_x; zeros(3*M, 1)];
 
 %% SIMexport
 
@@ -287,7 +265,7 @@ if MPC_COMPILE
 
     if contains(ACADOSOLVER, 'FORCES')
         % needed to give time to overwrite things
-%         keyboard
+        % keyboard
         pause(10)
     end
     if DETAILED_TIME
@@ -312,6 +290,7 @@ minACADOtLog = []; % minimum timings of solver over NRUNS
 
 for iRUNS = 1:NRUNS
 
+<<<<<<< HEAD
     eval(['ref = textread(' '''' 'chain_mass' filesep 'chain_mass_model_eq_M' num2str(NMASS) '.txt' '''', ', ''''' ');']);
     ref  = [ref(end-3+1:end); ref(1:end-3)]; % fix ordering convention
     
@@ -321,6 +300,8 @@ for iRUNS = 1:NRUNS
 %     norm(ref - fsolve_ref)
 %     keyboard
 
+=======
+>>>>>>> 1acf4c8c8fd2fc89af9f941bcd486b6b774dc2ad
     X0   = fsolve_ref;
     Xref = repmat(fsolve_ref.',N+1,1);
     Uref = zeros(N,NU);
@@ -487,8 +468,8 @@ logging.cputime = minACADOtLog;
 logging.iters   = ACADOnIter;
 logging.outputs = ACADOoutputs;
 logging.Nblock  = QPCONDENSINGSTEPS;
-logging.sol_accuracy    = sol_accuracy;
-logging.val_accuracy    = val_accuracy;
+logging.sol_accuracy = sol_accuracy;
+logging.val_accuracy = val_accuracy;
 
 if DETAILED_TIME
    logging.prepTime = ACADOtprepLog;

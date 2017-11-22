@@ -7,4 +7,4 @@
 *.mex*
 
 # loggings
-code/loggings_*.mat
+code/logs/*.mat

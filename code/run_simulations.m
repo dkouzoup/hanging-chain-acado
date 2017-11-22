@@ -33,17 +33,23 @@ end
 %% Choose simulation options
 
 % AVAILABLE SOLVERS:
+%
 % 'qpOASES_N3'  qpOASES with N3 condensing
 % 'qpOASES_N2'  qpOASES with N2 condensing
 % 'qpDUNES_B0'  qpDUNES with clipping
 % 'qpDUNES_BX'  qpDUNES with qpOASES and partial condensing with block size X
 % 'HPMPC_B0'    standard hpmpc (no partial condensing)
-% 'HPMPC_BX'    hpmpc with partial condensing with block size X
+% 'HPMPC_BX'    hpmpc with its own partial condensing and block size X
 % 'FORCES'      FORCES QP solver (if license is available)
 
+<<<<<<< HEAD
 set_of_solvers = {'qpOASES_N3', 'FORCES', 'qpOASES_N2', 'qpDUNES_B0', 'HPMPC_B0'}; % choose solvers
 set_of_N       = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};      % choose horizon length (for all solvers)
 % set_of_N       = {10};      % choose horizon length (for all solvers)
+=======
+set_of_solvers = {'qpOASES_N2', 'HPMPC_B0'};                 % choose solvers
+set_of_N       = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};  % choose horizon length (for all solvers)
+>>>>>>> 1acf4c8c8fd2fc89af9f941bcd486b6b774dc2ad
 
 sim_opts.NMASS       = 6;
 sim_opts.NRUNS       = 5;
@@ -51,7 +57,11 @@ sim_opts.MPC_EXPORT  = 1;
 sim_opts.MPC_COMPILE = 1;
 sim_opts.SIM_EXPORT  = 1;
 sim_opts.SIM_COMPILE = 1;
+<<<<<<< HEAD
 sim_opts.CHECK_AGAINST_REF_SOL = 1;
+=======
+sim_opts.CHECK_AGAINST_REF_SOL = 0;
+>>>>>>> 1acf4c8c8fd2fc89af9f941bcd486b6b774dc2ad
 sim_opts.SOL_TOL = 1e-3;
 
 %% Run simulations
@@ -62,7 +72,7 @@ for jj = 1:length(set_of_solvers)
 
     sim_opts.ACADOSOLVER = set_of_solvers{jj};
 
-    sim_opts.VISUAL = 0;
+    sim_opts.VISUAL = 1;
 
     for ii = 1:length(set_of_N)
 
@@ -90,11 +100,10 @@ t = mat2str(t);     % convert to string
 t = t(2:end-1);     % remove [ ]
 t(t == ' ') = '_';  % substitute spaces with underscore
 
-save(['loggings_' t],'loggings');
-plot_results(loggings);
+save(['logs' filesep 'data_' t],'loggings');
+plot_logs(loggings);
 
-% if sim_opts.CHECK_AGAINST_REF_SOL
-if 1
+if sim_opts.CHECK_AGAINST_REF_SOL
     max_val_err = 0;
     for i = 1:length(loggings)
         err = max(loggings{i}.val_accuracy);

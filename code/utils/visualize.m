@@ -1,8 +1,8 @@
 
 drawnow update
 
-n = length( ref )/3;
-eqpos = reshape(ref, 3, n)';
+n = length( fsolve_ref )/3;
+eqpos = reshape(fsolve_ref, 3, n)';
 eqpos = [x0.'; eqpos(2:M+1,:); eqpos(1,:)];
 
 figure(1), set(gcf, 'Color','white');
