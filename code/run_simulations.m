@@ -45,9 +45,6 @@ end
 set_of_solvers = {'qpOASES_N2', 'HPMPC_B0'};                 % choose solvers
 set_of_N       = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};  % choose horizon length (for all solvers)
 
-set_of_solvers = {'HPMPC_B0'};                 % choose solvers
-set_of_N       = {10, 20};  % choose horizon length (for all solvers)
-
 sim_opts.NMASS       = 4;
 sim_opts.NRUNS       = 5;
 sim_opts.MPC_EXPORT  = 1;
@@ -93,7 +90,7 @@ t = mat2str(t);     % convert to string
 t = t(2:end-1);     % remove [ ]
 t(t == ' ') = '_';  % substitute spaces with underscore
 
-save(['loggings_' t],'loggings');
+save(['logs' filesep 'data_' t],'loggings');
 plot_results(loggings);
 
 if sim_opts.CHECK_AGAINST_REF_SOL
