@@ -31,12 +31,7 @@ WALL          = -0.1;           % wall position (re-export if changed)
 
 Ts            = 0.2;            % sampling time [s]
 
-<<<<<<< HEAD
-Tf            = 5;            % final simulation time [s]
-% Tf            = 20;             % ++ change back idiot
-=======
 Tf            = 5;              % final simulation time [s]
->>>>>>> 1acf4c8c8fd2fc89af9f941bcd486b6b774dc2ad
 
 N             = 40;             % prediction horizon
 
@@ -69,13 +64,13 @@ end
 %% Initialization
 
 % extract block size from solver name
-if contains(ACADOSOLVER,'qpDUNES') 
+if contains(ACADOSOLVER,'qpDUNES')
     bpos = strfind(ACADOSOLVER,'B');
     QPCONDENSINGSTEPS = str2double(ACADOSOLVER(bpos+1:end));
     if QPCONDENSINGSTEPS ~= 0 &&(QPCONDENSINGSTEPS < 1 || mod(N,QPCONDENSINGSTEPS)~= 0)
         error('Invalid block size for given horizon length N.')
     end
-elseif contains(ACADOSOLVER,'HPMPC') 
+elseif contains(ACADOSOLVER,'HPMPC')
     bpos = strfind(ACADOSOLVER,'B');
     QPCONDENSINGSTEPS = str2double(ACADOSOLVER(bpos+1:end));
     if ~(QPCONDENSINGSTEPS >=1)
@@ -290,18 +285,6 @@ minACADOtLog = []; % minimum timings of solver over NRUNS
 
 for iRUNS = 1:NRUNS
 
-<<<<<<< HEAD
-    eval(['ref = textread(' '''' 'chain_mass' filesep 'chain_mass_model_eq_M' num2str(NMASS) '.txt' '''', ', ''''' ');']);
-    ref  = [ref(end-3+1:end); ref(1:end-3)]; % fix ordering convention
-    
-    % check that the computed state-steady does not deviate too much from
-    % precomputed values
-    
-%     norm(ref - fsolve_ref)
-%     keyboard
-
-=======
->>>>>>> 1acf4c8c8fd2fc89af9f941bcd486b6b774dc2ad
     X0   = fsolve_ref;
     Xref = repmat(fsolve_ref.',N+1,1);
     Uref = zeros(N,NU);
