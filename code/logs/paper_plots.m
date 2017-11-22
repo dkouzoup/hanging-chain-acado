@@ -3,6 +3,8 @@
 
 clear all; clc
 
+addpath([pwd filesep '../utils']);
+
 %% plot 1a
 
 close all
