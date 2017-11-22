@@ -1,4 +1,4 @@
-function logging = NMPC_chain_mass(sim_opts)
+function logged_data = NMPC_chain_mass(sim_opts)
 
 %% INITIALIZE
 
@@ -441,21 +441,21 @@ if exist('sim_opts','var')
 end
 
 % store simulation information
-logging.solver  = ACADOSOLVER;
-logging.wall    = WALL;
-logging.Ts      = Ts;
-logging.N       = N;
-logging.Nmass   = NMASS;
-logging.nruns   = NRUNS;
-logging.cputime = minACADOtLog;
-logging.iters   = ACADOnIter;
-logging.outputs = ACADOoutputs;
-logging.Nblock  = QPCONDENSINGSTEPS;
-logging.sol_accuracy = sol_accuracy;
-logging.val_accuracy = val_accuracy;
+logged_data.solver  = ACADOSOLVER;
+logged_data.wall    = WALL;
+logged_data.Ts      = Ts;
+logged_data.N       = N;
+logged_data.Nmass   = NMASS;
+logged_data.nruns   = NRUNS;
+logged_data.cputime = minACADOtLog;
+logged_data.iters   = ACADOnIter;
+logged_data.outputs = ACADOoutputs;
+logged_data.Nblock  = QPCONDENSINGSTEPS;
+logged_data.sol_accuracy = sol_accuracy;
+logged_data.val_accuracy = val_accuracy;
 
 if DETAILED_TIME
-   logging.prepTime = ACADOtprepLog;
+   logged_data.prepTime = ACADOtprepLog;
 end
 
 end
