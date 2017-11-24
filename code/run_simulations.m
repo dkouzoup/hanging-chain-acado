@@ -23,7 +23,7 @@ make
 cd([curr_path filesep '..' filesep 'external' filesep 'blasfeo'])
 system('make static_library')
 cd([curr_path filesep '..' filesep 'external' filesep 'hpmpc'])
-system('make static_library')
+system('make static_library BLASFEO_PATH=$(pwd)/../blasfeo/')
 
 cd(curr_path)
 
