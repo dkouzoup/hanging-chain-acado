@@ -305,6 +305,7 @@ for iRUNS = 1:NRUNS
     state_sim    = X0.';
 
     ACADOtLog     = [];  % log timings of solver
+    ACADOtSimLog  = [];  % log simulation timings of solver
     ACADOoutputs  = {};  % log all ACADO outputs
     ACADOnIter    = [];  % log iterations (if available)
     sol_accuracy  = [];  % log accuracy (deviation from reference solution) of the solution (if available)
@@ -367,6 +368,8 @@ for iRUNS = 1:NRUNS
         ACADOnIter = [ACADOnIter niter];
         ACADOoutputs{end+1} = output;
         ACADOtLog = [ACADOtLog; output.info.cpuTime];
+        ACADOtSimLog = [ACADOtSimLog; output.info.simTime];
+
 
         if DETAILED_TIME
             ACADOtprepLog = [ACADOtprepLog; output.info.preparationTime];
@@ -387,6 +390,7 @@ for iRUNS = 1:NRUNS
             sim_input.u = Uo;
             % do not take these instances into account for timings
             ACADOtLog(end) = NaN;
+            ACADOtSimLog(end) = NaN;
         end
 
         [states,outputs] = integrate_chain(sim_input);
@@ -417,11 +421,14 @@ for iRUNS = 1:NRUNS
 
     if iRUNS > 1
         minACADOtLog = min(ACADOtLog, minACADOtLog);
+        minACADOtSimLog = min(ACADOtSimLog, minACADOtSimLog);
+
         if DETAILED_TIME
             minACADOtprepLog = min(ACADOtprepLog, minACADOtprepLog);
         end
     else
         minACADOtLog = ACADOtLog;
+        minACADOtSimLog = ACADOtSimLog;
         if DETAILED_TIME
             minACADOtprepLog = ACADOtprepLog;
         end
@@ -448,6 +455,7 @@ logged_data.N       = N;
 logged_data.Nmass   = NMASS;
 logged_data.nruns   = NRUNS;
 logged_data.cputime = minACADOtLog;
+logged_data.simtime = minACADOtSimLog;
 logged_data.iters   = ACADOnIter;
 logged_data.outputs = ACADOoutputs;
 logged_data.Nblock  = QPCONDENSINGSTEPS;
