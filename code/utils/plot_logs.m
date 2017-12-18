@@ -85,7 +85,7 @@ if strcmp(MODE, 'average')
     % title('Average CPU time in closed-loop','interpreter','latex', 'fontsize',20)
     
     if PLOT_LOG
-        subplot(1,2,2)
+        SHANDLE = subplot(1,2,2);
         
         for kk = 1:length(data)
             loglog(data(kk).x, 1e3*(sum(data(kk).y)/size(data(kk).y,1)), '-o', 'linewidth',1.5);
@@ -119,7 +119,7 @@ elseif strcmp(MODE, 'maximum')
     % title('Worst case CPU time in closed-loop','interpreter','latex', 'fontsize',20)
     
     if PLOT_LOG
-        subplot(1,2,2)
+        SHANDLE = subplot(1,2,2);
         
         for kk = 1:length(data)
             loglog(data(kk).x, 1e3*max(data(kk).y), ...
@@ -141,6 +141,7 @@ end
 
 if PLOT_LOG
     FHANDLE.Position = [100 300 1350 500];
+    SHANDLE.Position(1) = SHANDLE.Position(1) - 0.05; 
 else
     FHANDLE.Position = [100 300 600 500];
 end
@@ -229,8 +230,9 @@ if strcmp(solver_name_latex, 'qpDUNES B0')
     solver_name_latex = 'qpDUNES';
 end
 if contains(solver_name_latex, 'HPMPC B') || contains(solver_name_latex, 'qpDUNES B')
-    solver_name_latex = replace(solver_name_latex, 'B', 'B$_{');
-    solver_name_latex(end+1:end+2) = '}$';
+    solver_name_latex = [solver_name_latex(1:strfind(solver_name_latex, 'B')-1) 'PC'];
+    % solver_name_latex = replace(solver_name_latex, 'B', 'B$_{');
+    % solver_name_latex(end+1:end+2) = '}$';
 end
 
 end
