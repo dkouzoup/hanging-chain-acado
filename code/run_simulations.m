@@ -44,8 +44,8 @@ end
 % 'HPMPC_BX'    HPMPC with (its own) partial condensing and block size X
 % 'FORCES'      FORCES QP solver (if license is available)
 
-set_of_solvers = {'qpOASES_N2', 'HPMPC_B0'};                 % choose solvers
-set_of_N       = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100};  % choose horizon length (for all solvers)
+set_of_solvers = {'qpOASES_N3', 'qpOASES_N2', 'qpDUNES_B0', 'HPMPC_B0'};
+set_of_N       = 10:10:100;
 
 sim_opts.NMASS       = 4;
 sim_opts.NRUNS       = 5;
@@ -68,7 +68,7 @@ for jj = 1:length(set_of_solvers)
 
     for ii = 1:length(set_of_N)
 
-        sim_opts.N = set_of_N{ii};
+        sim_opts.N = set_of_N(ii);
         logs{end+1} = NMPC_chain_mass(sim_opts);
 
         % plot only once per solver
@@ -106,4 +106,5 @@ if sim_opts.CHECK_AGAINST_REF_SOL
     end
     display(['max err = ', num2str(max_val_err)])
 end
+
 delete_temp_files();

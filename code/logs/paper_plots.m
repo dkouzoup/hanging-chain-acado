@@ -5,103 +5,107 @@ clear all; clc
 
 addpath([pwd filesep '../utils']);
 
-%% plot 1a
-
+%% plot condensing and sparse solvers
+ 
 close all
+clear variables
 
-load('data_M4_most_solvers.mat', 'loggings')
+SAVEFIGS = 0;
 
-plot_1_M4 = loggings;
+NM = 5;  % number of masses 
 
-for ii = length(plot_1_M4):-1:1
+xlims  = [10 80];
+
+if NM == 3
+    ylims1 = [0 60];
+    ylims2 = [0 60];
+elseif NM == 4
+    ylims1 = [0 80];
+    ylims2 = [0 80];    
+elseif NM == 5
+    ylims1 = [0 120];
+    ylims2 = [0 120];
+end
+
+% first plot 
+
+load(['M' num2str(NM) '_most_solvers.mat'], 'logs')
+
+plot_1 = logs;
+
+for ii = length(plot_1):-1:1
     
-    if ~contains(plot_1_M4{ii}.solver, 'qpOASES')
-        plot_1_M4(ii) = [];
+    if ~contains(plot_1{ii}.solver, 'qpOASES') %&& ~strcmp(plot_1{ii}.solver, 'FORCES')
+        plot_1(ii) = [];
     end
     
 end
 
-load('data_M4_FORCES.mat', 'loggings')
+plot_logs(plot_1, [], [], xlims, ylims1);
 
-plot_1_M4 = [plot_1_M4 loggings];
-% plot_1_M4 = [plot_1_M4(1:10) loggings plot_1_M4(11:end)];
+if SAVEFIGS
+    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_1_M' num2str(NM) '.pdf'])
+end
 
-plot_logs(plot_1_M4);
+% second plot 
 
-% save
-exportfig('~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_1_M4.pdf')
+f = plot_logs(plot_1, true, [], xlims, ylims2);
 
-%% plot 1b
+% plot_2 = [];
+load(['M' num2str(NM) '_most_solvers.mat'], 'logs')
+plot_2 = logs;
+% plot_2 = [plot_2 logs];
+% load(['M' num2str(NM) '_HPMPC_B' num2str(NB) '.mat'], 'logs')
+% plot_2 = [plot_2 logs];
 
-close all
-
-load('data_M6_most_solvers.mat', 'loggings')
-
-plot_1_M6 = loggings;
-
-for ii = length(plot_1_M6):-1:1
+for ii = length(plot_2):-1:1
     
-    if ~contains(plot_1_M6{ii}.solver, 'qpOASES')
-        plot_1_M6(ii) = [];
+    if contains(plot_2{ii}.solver, 'qpOASES') %|| strcmp(plot_2{ii}.solver, 'FORCES')
+        plot_2(ii) = [];
     end
     
 end
 
-load('data_M6_FORCES.mat', 'loggings')
 
-plot_1_M6 = [plot_1_M6 loggings];
+plot_logs(plot_2, false, f, xlims, ylims2);
 
-plot_logs(plot_1_M6);
-
-% save
-exportfig('~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_1_M6.pdf')
-
-%% plot 2a
-
-close all
-
-f = plot_logs(plot_1_M4, true);
-
-plot_2_M4 = [];
-load('data_M4_most_solvers.mat', 'loggings')
-plot_2_M4 = [plot_2_M4 loggings];
-load('data_M4_HPMPC_B8.mat', 'loggings')
-plot_2_M4 = [plot_2_M4 loggings];
-
-for ii = length(plot_2_M4):-1:1
-    
-    if contains(plot_2_M4{ii}.solver, 'qpOASES') || strcmp(plot_2_M4{ii}.solver, 'FORCES')
-        plot_2_M4(ii) = [];
-    end
-    
+if SAVEFIGS
+    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_2_M' num2str(NM) '.pdf'])
 end
 
-plot_logs(plot_2_M4, false, f);
 
-exportfig('~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_2_M4.pdf')
+% third plot
 
-%% plot 2b
+ff = plot_logs([plot_1 plot_2], true, [], xlims, ylims2);
 
-close all
+load(['M' num2str(NM) '_bc_solvers.mat'], 'logs')
+plot_3 = logs;
+plot_logs(plot_3, false, ff, xlims, ylims2);
 
-f = plot_logs(plot_1_M6, true);
-
-plot_2_M6 = [];
-load('data_M6_most_solvers.mat', 'loggings')
-plot_2_M6 = [plot_2_M6 loggings];
-load('data_M6_HPMPC_B10.mat', 'loggings')
-plot_2_M6 = [plot_2_M6 loggings];
-
-for ii = length(plot_2_M6):-1:1
-    
-    if contains(plot_2_M6{ii}.solver, 'qpOASES') || strcmp(plot_2_M6{ii}.solver, 'FORCES')
-        plot_2_M6(ii) = [];
-    end
-    
+if SAVEFIGS
+   exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_3_M' num2str(NM) '.pdf'])
 end
 
-plot_logs(plot_2_M6, false, f);
+%% plot partial condensing
+ 
+close all
+clear variables
 
-exportfig('~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_2_M6.pdf')
+SAVEFIGS = 1;
+
+load([pwd filesep 'M345_HPMPC_BC'], 'logs')
+plot_partial_condensing(logs)
+
+if SAVEFIGS
+    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/bc_hpmpc.pdf'])
+end
+
+load([pwd filesep 'M345_QPDUNES_BC'], 'logs')
+plot_partial_condensing(logs)
+
+if SAVEFIGS
+    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/bc_qpdunes.pdf'])
+end
+
 
 

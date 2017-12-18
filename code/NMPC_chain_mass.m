@@ -11,6 +11,8 @@ clearvars -except sim_opts; clc; close all; % sim_opts contain options to overwr
 close all
 clc
 
+addpath([pwd filesep 'utils'])
+
 %% SIMULATION OPTIONS
 
 SIM_EXPORT    = 1;              % export code for ACADO simulator

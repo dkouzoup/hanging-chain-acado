@@ -1,4 +1,4 @@
-function FHANDLE = plot_logs( logs, FADED, FHANDLE, Tprep )
+function FHANDLE = plot_logs(logs, FADED, FHANDLE, xlims, ylims)
 
 % PLOT_LOGS     plot performance of QP solvers as a function of prediction
 %               horizon N.
@@ -8,16 +8,19 @@ function FHANDLE = plot_logs( logs, FADED, FHANDLE, Tprep )
 % logs          logged data from simulation (cell array)
 % FADED         set to true to plot solver curves faded (boolean)
 % FHANDLE       pass existing figure handle to get multiple logs in on plot
-% Tprep         pass preparation time to be subtracted from the timings
 
 MODE  = 'maximum';  % choose between 'maximum' and 'average' cpu time
 PLOT_LOG = true;    % plot also logarithmic plot
 
-%% default values for inputs
-
-if nargin < 4 || isempty(Tprep)
-    Tprep = 0;
+if nargin < 5
+    ylims = [0 130];
 end
+
+if nargin < 4
+    xlims = [10 100];
+end
+
+%% default values for inputs
 
 if nargin < 3 || isempty(FHANDLE)
     FHANDLE = figure;
@@ -56,7 +59,7 @@ for ii = 1:nexp
     end
     
     data(kk).x = [data(kk).x logs{ii}.N];
-    data(kk).y = [data(kk).y logs{ii}.cputime];
+    data(kk).y = [data(kk).y logs{ii}.cputime - logs{ii}.simtime];
   
 end
 
@@ -71,22 +74,28 @@ if strcmp(MODE, 'average')
     end
     
     for kk = 1:length(data)
-        plot(data(kk).x, 1e3*(sum(data(kk).y)/size(data(kk).y,1) - Tprep), '-o', 'linewidth',1.5);
+        plot(data(kk).x, 1e3*(sum(data(kk).y)/size(data(kk).y,1)), '-o', 'linewidth',1.5);
         hold on
     end
+    grid on
     
     set_up_plot(data, false);
+    xlim(xlims)
+    ylim(ylims)
     % title('Average CPU time in closed-loop','interpreter','latex', 'fontsize',20)
     
     if PLOT_LOG
         subplot(1,2,2)
         
         for kk = 1:length(data)
-            loglog(data(kk).x, 1e3*(sum(data(kk).y)/size(data(kk).y,1) - Tprep), '-o', 'linewidth',1.5);
+            loglog(data(kk).x, 1e3*(sum(data(kk).y)/size(data(kk).y,1)), '-o', 'linewidth',1.5);
             hold on
         end
+        grid on
         
         set_up_plot(data, true);
+        xlim(xlims)
+        ylim(ylims)
         % title('Average CPU time in closed-loop','interpreter','latex', 'fontsize',20)
     end
 
@@ -97,26 +106,32 @@ elseif strcmp(MODE, 'maximum')
     end
         
     for kk = 1:length(data)
-        plot(data(kk).x, 1e3*(max(data(kk).y)-Tprep), ...
+        plot(data(kk).x, 1e3*(max(data(kk).y)), ...
             'Marker', data(kk).marker, 'MarkerSize', 12, 'MarkerEdgeColor', [1-alpha 1-alpha 1-alpha], ... 
             'Color', color, 'Linewidth',1.5, 'LineStyle', style);
         hold on
     end
+    grid on
     
     set_up_plot(data, false);
+    xlim(xlims)
+    ylim(ylims)
     % title('Worst case CPU time in closed-loop','interpreter','latex', 'fontsize',20)
     
     if PLOT_LOG
         subplot(1,2,2)
         
         for kk = 1:length(data)
-            semilogy(data(kk).x, 1e3*max(data(kk).y-Tprep), ...
+            loglog(data(kk).x, 1e3*max(data(kk).y), ...
             'Marker', data(kk).marker, 'MarkerSize', 12, 'MarkerEdgeColor', [1-alpha 1-alpha 1-alpha], ... 
             'Color', color, 'linewidth',1.5, 'LineStyle', style);
             hold on
         end
+        grid on
         
         set_up_plot(data, true);
+        xlim(xlims)
+        ylim(ylims)
         % title('Worst case CPU time in closed-loop','interpreter','latex', 'fontsize',20)
     end
     
@@ -136,7 +151,7 @@ function set_up_plot(data, LOGPLOT)
 
 set(gca, 'fontsize',20);
 xlabel('Prediction horizon $N$', 'interpreter','latex', 'fontsize',20);
-ylabel('Cpu time $(\mathrm{ms})$', 'interpreter','latex', 'fontsize',20);
+ylabel('CPU time $(\mathrm{ms})$', 'interpreter','latex', 'fontsize',20);
 
 set(gca,'TickLabelInterpreter','latex')
 
@@ -175,7 +190,7 @@ elseif strcmp(solver, 'FORCES')
     
     marker = 's';
     
-elseif contains(solver, 'qpDUNES')
+elseif strcmp(solver, 'qpDUNES') || strcmp(solver, 'qpDUNES_B0')
     
     marker = 'p';
     
@@ -186,6 +201,10 @@ elseif strcmp(solver, 'HPMPC') || strcmp(solver, 'HPMPC_B0')
 elseif contains(solver, 'HPMPC_B')
     
     marker = 'x';
+    
+elseif contains(solver, 'qpDUNES_B')
+    
+    marker = 'd';
     
 else 
     marker = 'o';
