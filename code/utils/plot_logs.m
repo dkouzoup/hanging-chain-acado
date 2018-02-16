@@ -1,4 +1,4 @@
-function FHANDLE = plot_logs(logs, FADED, FHANDLE, xlims, ylims)
+function [FHANDLE] = plot_logs(logs, FADED, LOGSCALE, FHANDLE, xlims, ylims)
 
 % PLOT_LOGS     plot performance of QP solvers as a function of prediction
 %               horizon N.
@@ -9,21 +9,22 @@ function FHANDLE = plot_logs(logs, FADED, FHANDLE, xlims, ylims)
 % FADED         set to true to plot solver curves faded (boolean)
 % FHANDLE       pass existing figure handle to get multiple logs in on plot
 
-MODE  = 'maximum';  % choose between 'maximum' and 'average' cpu time
-PLOT_LOG = true;    % plot also logarithmic plot
-
-if nargin < 5
+if nargin < 6
     ylims = [0 130];
 end
 
-if nargin < 4
+if nargin < 5
     xlims = [10 100];
 end
 
 %% default values for inputs
 
-if nargin < 3 || isempty(FHANDLE)
+if nargin < 4 || isempty(FHANDLE)
     FHANDLE = figure;
+end
+
+if nargin < 3 || isempty(LOGSCALE)
+    LOGSCALE = false;
 end
 
 if nargin < 2 || isempty(FADED)
@@ -67,47 +68,11 @@ end
 
 figure(FHANDLE);
 
-if strcmp(MODE, 'average')
+if ~LOGSCALE
     
-    if PLOT_LOG
-        subplot(1,2,1)
-    end
-    
-    for kk = 1:length(data)
-        plot(data(kk).x, 1e3*(sum(data(kk).y)/size(data(kk).y,1)), '-o', 'linewidth',1.5);
-        hold on
-    end
-    grid on
-    
-    set_up_plot(data, false);
-    xlim(xlims)
-    ylim(ylims)
-    % title('Average CPU time in closed-loop','interpreter','latex', 'fontsize',20)
-    
-    if PLOT_LOG
-        SHANDLE = subplot(1,2,2);
-        
-        for kk = 1:length(data)
-            loglog(data(kk).x, 1e3*(sum(data(kk).y)/size(data(kk).y,1)), '-o', 'linewidth',1.5);
-            hold on
-        end
-        grid on
-        
-        set_up_plot(data, true);
-        xlim(xlims)
-        ylim(ylims)
-        % title('Average CPU time in closed-loop','interpreter','latex', 'fontsize',20)
-    end
-
-elseif strcmp(MODE, 'maximum')
-    
-    if PLOT_LOG
-        subplot(1,2,1)
-    end
-        
     for kk = 1:length(data)
         plot(data(kk).x, 1e3*(max(data(kk).y)), ...
-            'Marker', data(kk).marker, 'MarkerSize', 12, 'MarkerEdgeColor', [1-alpha 1-alpha 1-alpha], ... 
+            'Marker', data(kk).marker, 'MarkerSize', 12, 'MarkerEdgeColor', [1-alpha 1-alpha 1-alpha], ...
             'Color', color, 'Linewidth',1.5, 'LineStyle', style);
         hold on
     end
@@ -116,35 +81,25 @@ elseif strcmp(MODE, 'maximum')
     set_up_plot(data, false);
     xlim(xlims)
     ylim(ylims)
-    % title('Worst case CPU time in closed-loop','interpreter','latex', 'fontsize',20)
-    
-    if PLOT_LOG
-        SHANDLE = subplot(1,2,2);
-        
-        for kk = 1:length(data)
-            loglog(data(kk).x, 1e3*max(data(kk).y), ...
-            'Marker', data(kk).marker, 'MarkerSize', 12, 'MarkerEdgeColor', [1-alpha 1-alpha 1-alpha], ... 
-            'Color', color, 'linewidth',1.5, 'LineStyle', style);
-            hold on
-        end
-        grid on
-        
-        set_up_plot(data, true);
-        xlim(xlims)
-        ylim(ylims)
-        % title('Worst case CPU time in closed-loop','interpreter','latex', 'fontsize',20)
-    end
-    
+
 else
-    error('Unknown MODE, choose either maximum or average');
+        
+    for kk = 1:length(data)
+        loglog(data(kk).x, 1e3*max(data(kk).y), ...
+            'Marker', data(kk).marker, 'MarkerSize', 12, 'MarkerEdgeColor', [1-alpha 1-alpha 1-alpha], ...
+            'Color', color, 'linewidth',1.5, 'LineStyle', style);
+        hold on
+    end
+    grid on
+    
+    set_up_plot(data, true);
+    xlim(xlims)
+    ylim(ylims)
+    % title('Worst case CPU time in closed-loop','interpreter','latex', 'fontsize',20)
 end
 
-if PLOT_LOG
-    FHANDLE.Position = [100 300 1350 500];
-    SHANDLE.Position(1) = SHANDLE.Position(1) - 0.05; 
-else
-    FHANDLE.Position = [100 300 600 500];
-end
+
+FHANDLE.Position = [100 300 600 500];
 
 end
 
