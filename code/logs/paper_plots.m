@@ -1,6 +1,6 @@
 
 % paper plots
-
+ 
 clear all; clc
 
 addpath([pwd filesep '../utils']);
@@ -10,9 +10,9 @@ addpath([pwd filesep '../utils']);
 close all
 clear variables
 
-SAVEFIGS = 0;
+SAVEFIGS = 1;
 
-NM = 5;  % number of masses 
+NM = 3;  % number of masses 
 
 xlims  = [10 80];
 
@@ -41,15 +41,19 @@ for ii = length(plot_1):-1:1
     
 end
 
-plot_logs(plot_1, [], [], xlims, ylims1);
+plot_logs(plot_1, false, false, [], xlims, ylims1);
 
 if SAVEFIGS
     exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_1_M' num2str(NM) '.pdf'])
 end
 
-% second plot 
+plot_logs(plot_1, false, true, [], xlims, ylims1);
 
-f = plot_logs(plot_1, true, [], xlims, ylims2);
+if SAVEFIGS
+    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_1_M' num2str(NM) '_log.pdf'])
+end
+
+% second plot 
 
 % plot_2 = [];
 load(['M' num2str(NM) '_most_solvers.mat'], 'logs')
@@ -66,24 +70,38 @@ for ii = length(plot_2):-1:1
     
 end
 
-
-plot_logs(plot_2, false, f, xlims, ylims2);
+f1 = plot_logs(plot_1, true, false, [], xlims, ylims2);
+plot_logs(plot_2, false, false, f1, xlims, ylims2);
 
 if SAVEFIGS
     exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_2_M' num2str(NM) '.pdf'])
 end
 
+f2 = plot_logs(plot_1, true, true, [], xlims, ylims2);
+plot_logs(plot_2, false, true, f2, xlims, ylims2);
+
+if SAVEFIGS
+    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_2_M' num2str(NM) '_log.pdf'])
+end
 
 % third plot
 
-ff = plot_logs([plot_1 plot_2], true, [], xlims, ylims2);
 
 load(['M' num2str(NM) '_bc_solvers.mat'], 'logs')
 plot_3 = logs;
-plot_logs(plot_3, false, ff, xlims, ylims2);
+
+ff1 = plot_logs([plot_1 plot_2], true, false, [], xlims, ylims2);
+plot_logs(plot_3, false, false, ff1, xlims, ylims2);
 
 if SAVEFIGS
    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_3_M' num2str(NM) '.pdf'])
+end
+
+ff2 = plot_logs([plot_1 plot_2], true, true, [], xlims, ylims2);
+plot_logs(plot_3, false, true, ff2, xlims, ylims2);
+
+if SAVEFIGS
+   exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_3_M' num2str(NM) '_log.pdf'])
 end
 
 %% plot partial condensing
