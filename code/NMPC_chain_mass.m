@@ -6,6 +6,7 @@ if ~exist('sim_opts','var')
     clear all
 end
 
+clear acados_MPCstep % for persistent ocp_qp
 clear global % for ACADO workspace
 clearvars -except sim_opts; clc; close all; % sim_opts contain options to overwrite current script
 close all
@@ -25,7 +26,9 @@ MPC_COMPILE   = 1;              % compile exported code for ACADO solver
 
 NRUNS         = 5;              % run closed-loop simulation NRUNS times and store minimum timings (to minimize OS interference)
 
-ACADOSOLVER   = 'qpDUNES_B0';   % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_N3', 'FORCES', 'HPMPC'
+ACADOSOLVER   = 'qpOASES_e_N2'; % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC'
+
+WARMSTART     = 1;              % applicable for qpOASES/qpDUNES
 
 VISUAL        = 1;              % set to 1 to visualize chain of masses (only for the first out of the NRUNS simulations)
 
@@ -46,6 +49,8 @@ Uo            = [-1;1;1];       % value to overwrite uMPC for To sec
 DETAILED_TIME = 0;              % if 1, time preparation/feedback step: ONLY WORKS FOR FORCES
 
 CHECK_AGAINST_REF_SOL = 0;      % if 1, exports and compiles reference solver (qpOASES, CN2 by default)
+
+CHECK_AGAINST_ACADOS = 0;       % either 0 or acados_solver_name
 
 SOL_TOL = 1e-6;                 % maximum accepted 2-norm of the deviation of the solution from the reference solution
                                 % (only used if CHECK_AGAINST_REF_SOL = 1).
@@ -132,9 +137,12 @@ sim.set( 'NUM_INTEGRATOR_STEPS',        2        );
 if SIM_EXPORT
     sim.exportCode( 'export_SIM' );
 end
+
+sim_name = sprintf('integrate_chain_M%d',NMASS);
 if SIM_COMPILE
     cd export_SIM
-    make_acado_integrator('../integrate_chain')
+    sim_path = '../';
+    make_acado_integrator([sim_path sim_name])
     cd ..
 end
 
@@ -169,23 +177,46 @@ if strcmp(ACADOSOLVER,'qpOASES_N3')
 
     mpc.set( 'QP_SOLVER',               'QP_QPOASES'         );
     mpc.set( 'SPARSE_QP_SOLUTION',      'CONDENSING'         );
-
+    if WARMSTART
+        mpc.set( 'HOTSTART_QP',         'YES'                );
+    end
 elseif strcmp(ACADOSOLVER,'qpOASES_N2')
 
     mpc.set( 'QP_SOLVER',               'QP_QPOASES'         );
     mpc.set( 'SPARSE_QP_SOLUTION',      'FULL_CONDENSING_N2' );
+    if WARMSTART
+        mpc.set( 'HOTSTART_QP',         'YES'                );
+    end
+elseif strcmp(ACADOSOLVER,'qpOASES_e_N3')
 
+    mpc.set( 'QP_SOLVER',               'QP_QPOASES3'        );
+    mpc.set( 'SPARSE_QP_SOLUTION',      'CONDENSING'         );
+    if WARMSTART
+        mpc.set( 'HOTSTART_QP',         'YES'                );
+    end
+elseif strcmp(ACADOSOLVER,'qpOASES_e_N2')
+
+    mpc.set( 'QP_SOLVER',               'QP_QPOASES3'        );
+    mpc.set( 'SPARSE_QP_SOLUTION',      'FULL_CONDENSING_N2' );
+    if WARMSTART
+        mpc.set( 'HOTSTART_QP',         'YES'                );
+    end
 elseif contains(ACADOSOLVER,'qpDUNES') && QPCONDENSINGSTEPS <= 1
 
     mpc.set( 'QP_SOLVER',               'QP_QPDUNES'         );
     mpc.set( 'SPARSE_QP_SOLUTION',      'SPARSE_SOLVER'      );
-
+    if WARMSTART
+        mpc.set( 'HOTSTART_QP',         'YES'                );
+    end
 elseif contains(ACADOSOLVER,'qpDUNES') && QPCONDENSINGSTEPS > 1
 
     mpc.set( 'QP_SOLVER',               'QP_QPDUNES'         );
     mpc.set( 'SPARSE_QP_SOLUTION',      'BLOCK_CONDENSING_N2');
     mpc.set( 'CONDENSING_BLOCK_SIZE',    QPCONDENSINGSTEPS   );
-
+    if WARMSTART == 0
+        warning('qpDUNES with cold start not implemented in ACADO');
+        keyboard
+    end
 elseif strcmp(ACADOSOLVER,'FORCES_BC') % TODO FIX
 
     if QPCONDENSINGSTEPS == 1
@@ -200,8 +231,8 @@ elseif strcmp(ACADOSOLVER,'FORCES_BC') % TODO FIX
 
 elseif strcmp(ACADOSOLVER,'FORCES')
 
-    mpc.set( 'QP_SOLVER',           'QP_FORCES'              );
-    mpc.set( 'SPARSE_QP_SOLUTION',  'SPARSE_SOLVER'          );
+    mpc.set( 'QP_SOLVER',               'QP_FORCES'          );
+    mpc.set( 'SPARSE_QP_SOLUTION',      'SPARSE_SOLVER'      );
 
 
 elseif contains(ACADOSOLVER,'HPMPC')
@@ -225,9 +256,10 @@ mpc.set( 'NUM_INTEGRATOR_STEPS',        2*N                  );
 mpc.set( 'MAX_NUM_QP_ITERATIONS', 1000 );
 mpc.set( 'PRINTLEVEL', 'LOW' );
 
-if exist('export_MPC', 'dir')
+if exist('export_MPC', 'dir') && MPC_EXPORT == 1 && MPC_COMPILE == 1
     rmdir('export_MPC', 's')
 end
+
 if MPC_EXPORT
     mpc.exportCode( 'export_MPC' );
     if CHECK_AGAINST_REF_SOL
@@ -250,8 +282,11 @@ if MPC_COMPILE
             waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'qpDUNES-dev'], 'qpdunes'));
         end
     end
-    if contains(ACADOSOLVER,'qpOASES')
+    if contains(ACADOSOLVER,'qpOASES_N')
         waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'acado-dev' filesep 'external_packages' filesep 'qpoases'], 'qpoases'));
+    end
+    if contains(ACADOSOLVER,'qpOASES_e_N')
+        waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'acado-dev' filesep 'external_packages' filesep 'qpoases3'], 'qpoases3'));
     end
     if contains(ACADOSOLVER,'HPMPC')
         % TODO: either support HPMPC_old too (by adding submodule) or remove option in acado template
@@ -283,7 +318,11 @@ end
 
 %% Closed loop simulations
 
-minACADOtLog = []; % minimum timings of solver over NRUNS
+% minimum timings of solver over NRUNS
+minACADOtLog = [];
+if CHECK_AGAINST_ACADOS
+    acados_solve_qp_min_times = [];
+end
 
 for iRUNS = 1:NRUNS
 
@@ -313,6 +352,12 @@ for iRUNS = 1:NRUNS
     sol_accuracy  = [];  % log accuracy (deviation from reference solution) of the solution (if available)
     val_accuracy  = [];  % log accuracy (deviation from reference obj value) of the solution (if available)
 
+    if CHECK_AGAINST_ACADOS
+        acados_solve_qp_tmp_times = [];
+        acados_solve_qp_iters     = [];
+        acados_solve_qp_error     = [];
+    end
+
     if DETAILED_TIME
         ACADOtprepLog = [];  % log preparation times
     end
@@ -335,6 +380,23 @@ for iRUNS = 1:NRUNS
         % Solve NMPC OCP with ACADO
         input.x0 = state_sim(end,:);
         output   = acado_MPCstep(input);
+
+        if CHECK_AGAINST_ACADOS
+            % Solve NMPC OCP with acados
+            input.warmstart = WARMSTART;
+            input.solver = CHECK_AGAINST_ACADOS;
+
+            if ~isempty(QPCONDENSINGSTEPS)
+                input.N2 = N/QPCONDENSINGSTEPS;
+            else
+                input.N2 = Inf;
+            end
+
+            input.WALL    = WALL;
+            input.LBU     = -ones(NU,1);
+            input.UBU     = ones(NU,1);
+            output_acados = acados_MPCstep(input);
+        end
 
         if CHECK_AGAINST_REF_SOL
             ref_output = acado_ref_MPCstep(input);
@@ -370,11 +432,26 @@ for iRUNS = 1:NRUNS
         ACADOnIter = [ACADOnIter niter];
         ACADOoutputs{end+1} = output;
         ACADOtLog = [ACADOtLog; output.info.cpuTime];
-        ACADOtSimLog = [ACADOtSimLog; output.info.simTime];
-
+        if isfield(output.info, 'simTime')
+            ACADOtSimLog = [ACADOtSimLog; output.info.simTime];
+        else
+            ACADOtSimLog = [ACADOtSimLog; inf];
+        end
 
         if DETAILED_TIME
             ACADOtprepLog = [ACADOtprepLog; output.info.preparationTime];
+        end
+
+        if CHECK_AGAINST_ACADOS
+
+            acados_solve_qp_tmp_times(end+1) = output_acados.info.QP_time;
+            acados_solve_qp_iters(end+1)     = output_acados.info.nIterations;
+            acados_solve_qp_error(end+1)     = norm([output_acados.x(:); output_acados.u(:)] - [output.x(:); output.u(:)], inf);
+
+            fprintf('ACADO:\t %d\t %f\n', niter, 1000*(ACADOtLog(end) - ACADOtSimLog(end)));
+            fprintf('acados:\t %d\t %f\n', output_acados.info.nIterations, 1000*output_acados.info.QP_time);
+            fprintf('solution gap:\t %5.e\n', norm(output_acados.x(:)-output.x(:),inf));
+%             keyboard
         end
 
         % Save the MPC step
@@ -393,9 +470,12 @@ for iRUNS = 1:NRUNS
             % do not take these instances into account for timings
             ACADOtLog(end) = NaN;
             ACADOtSimLog(end) = NaN;
+            if CHECK_AGAINST_ACADOS
+                acados_solve_qp_tmp_times(end) = NaN;
+            end
         end
 
-        [states,outputs] = integrate_chain(sim_input);
+        [states, outputs] = eval([ sim_name,'(sim_input)']);
 
         state_sim = [state_sim; states.value'];
         iter      = iter + 1;
@@ -421,21 +501,26 @@ for iRUNS = 1:NRUNS
     % delete last time instant
     time(end) = [];
 
-    if iRUNS > 1
+    if iRUNS == 1
+        minACADOtLog = ACADOtLog;
+        minACADOtSimLog = ACADOtSimLog;
+        if DETAILED_TIME
+            minACADOtprepLog = ACADOtprepLog;
+        end
+        if CHECK_AGAINST_ACADOS
+            acados_solve_qp_min_times = acados_solve_qp_tmp_times;
+        end
+    else
         minACADOtLog = min(ACADOtLog, minACADOtLog);
         minACADOtSimLog = min(ACADOtSimLog, minACADOtSimLog);
 
         if DETAILED_TIME
             minACADOtprepLog = min(ACADOtprepLog, minACADOtprepLog);
         end
-    else
-        minACADOtLog = ACADOtLog;
-        minACADOtSimLog = ACADOtSimLog;
-        if DETAILED_TIME
-            minACADOtprepLog = ACADOtprepLog;
+        if CHECK_AGAINST_ACADOS
+            acados_solve_qp_min_times = min(acados_solve_qp_tmp_times, acados_solve_qp_min_times);
         end
     end
-
 end
 
 if exist('sim_opts','var')
@@ -466,6 +551,25 @@ logged_data.val_accuracy = val_accuracy;
 
 if DETAILED_TIME
    logged_data.prepTime = ACADOtprepLog;
+end
+
+if CHECK_AGAINST_ACADOS
+   logged_data.acados_qptime     = acados_solve_qp_min_times';
+   logged_data.acados_error_iter = max(abs(acados_solve_qp_iters - ACADOnIter));
+   logged_data.acados_error_sol  = max(acados_solve_qp_error);
+
+%    if 1
+%        disp(['MAX ERROR IN NUMBER OF ITERATIONS: ' num2str(logged_data.acados_error_iter)]);
+%        disp(['MAX ERROR IN SOLUTION:             ' num2str(logged_data.acados_error_sol)]);
+%        close all
+% %        plot(minACADOtLog-minACADOtSimLog);
+% %        hold on
+% %        plot(acados_solve_qp_min_times);
+% %        figure
+%        plot((minACADOtLog-minACADOtSimLog)./acados_solve_qp_min_times')
+%        title('Speedup of acados vs acado')
+%        keyboard
+%    end
 end
 
 end

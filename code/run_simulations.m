@@ -32,6 +32,8 @@ if verLessThan('matlab', 'R2016a')
     addpath([pwd filesep 'legacy'])
 end
 
+addpath(genpath([pwd filesep '../external/acados_install']))
+
 %% Choose simulation options
 
 % AVAILABLE SOLVERS:
@@ -44,9 +46,12 @@ end
 % 'HPMPC_BX'    HPMPC with (its own) partial condensing and block size X
 % 'FORCES'      FORCES QP solver (if license is available)
 
-set_of_solvers = {'qpOASES_N3', 'qpOASES_N2', 'qpDUNES_B0', 'HPMPC_B0'};
-set_of_N       = 10:10:100;
+% set_of_solvers = {'qpOASES_N3', 'qpOASES_N2', 'qpDUNES_B0', 'HPMPC_B0'};
+% set_of_N       = 10:10:100;
+set_of_solvers = {'HPMPC_B0'};
+set_of_N       = 50;
 
+sim_opts.WARMSTART   = 0;
 sim_opts.NMASS       = 4;
 sim_opts.NRUNS       = 5;
 sim_opts.MPC_EXPORT  = 1;
@@ -54,6 +59,7 @@ sim_opts.MPC_COMPILE = 1;
 sim_opts.SIM_EXPORT  = 1;
 sim_opts.SIM_COMPILE = 1;
 sim_opts.CHECK_AGAINST_REF_SOL = 0;
+sim_opts.CHECK_AGAINST_ACADOS  = 'hpmpc';
 sim_opts.SOL_TOL = 1e-3;
 
 %% Run simulations

@@ -8,3 +8,6 @@
 
 # loggings
 code/logs/*.mat
+
+# acados
+external/acados_install/*
