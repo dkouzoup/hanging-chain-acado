@@ -1,38 +1,12 @@
 
 %% Initialize
 
-clear all; close all; clc
+clear variables;
+clear global;
+close all;
+clc
 
-USE_ACADO_DEV = 1; % leave to 1 if HPMPC is used in the benchmark
-
-addpath([pwd filesep 'utils'])
-
-% remove acado installations from path and add version of this repository
-remove_acado_from_path();
-
-curr_path = pwd;
-
-if USE_ACADO_DEV
-    cd(['..' filesep 'external' filesep 'acado-dev' filesep 'interfaces' filesep 'matlab']);
-else
-    cd(['..' filesep 'external' filesep 'acado' filesep 'interfaces' filesep 'matlab']);
-end
-make
-
-% compile blasfeo and hpmpc
-cd([curr_path filesep '..' filesep 'external' filesep 'blasfeo'])
-system('make static_library')
-cd([curr_path filesep '..' filesep 'external' filesep 'hpmpc'])
-system('make static_library BLASFEO_PATH=$(pwd)/../blasfeo/')
-
-cd(curr_path)
-
-% add helper functions missing from older matlab versions
-if verLessThan('matlab', 'R2016a')
-    addpath([pwd filesep 'legacy'])
-end
-
-addpath(genpath([pwd filesep '../external/acados_install']))
+initialize()
 
 %% Choose simulation options
 
@@ -48,8 +22,8 @@ addpath(genpath([pwd filesep '../external/acados_install']))
 
 % set_of_solvers = {'qpOASES_N3', 'qpOASES_N2', 'qpDUNES_B0', 'HPMPC_B0'};
 % set_of_N       = 10:10:100;
-set_of_solvers = {'HPMPC_B0'};
-set_of_N       = 50;
+set_of_solvers = {'qpOASES_e_N2'};
+set_of_N       = 30; %10:10:100;
 
 sim_opts.WARMSTART   = 0;
 sim_opts.NMASS       = 4;
@@ -59,10 +33,21 @@ sim_opts.MPC_COMPILE = 1;
 sim_opts.SIM_EXPORT  = 1;
 sim_opts.SIM_COMPILE = 1;
 sim_opts.CHECK_AGAINST_REF_SOL = 0;
-sim_opts.CHECK_AGAINST_ACADOS  = 'hpmpc';
+sim_opts.CHECK_AGAINST_ACADOS  = 'qpoases';
 sim_opts.SOL_TOL = 1e-3;
 
 %% Run simulations
+
+% % TEMP!
+% if isempty(sim_opts.CHECK_AGAINST_ACADOS)
+%     if sim_opts.NRUNS == 1
+%         error('set more runs!')
+%     end
+% else
+%    if sim_opts.NRUNS > 1
+%         error('set one run!')
+%    end
+% end
 
 logs = {};
 

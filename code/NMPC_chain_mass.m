@@ -382,20 +382,24 @@ for iRUNS = 1:NRUNS
         output   = acado_MPCstep(input);
 
         if CHECK_AGAINST_ACADOS
+            input_acados = input;
             % Solve NMPC OCP with acados
-            input.warmstart = WARMSTART;
-            input.solver = CHECK_AGAINST_ACADOS;
-
+            input_acados.warmstart = WARMSTART;
+            input_acados.solver = CHECK_AGAINST_ACADOS;
+            input_acados.acado_solver = ACADOSOLVER;
+            input_acados.acado_sol = output;
+            input_acados.nmasses = NMASS;
+            
             if ~isempty(QPCONDENSINGSTEPS)
-                input.N2 = N/QPCONDENSINGSTEPS;
+                input_acados.N2 = N/QPCONDENSINGSTEPS;
             else
-                input.N2 = Inf;
+                input_acados.N2 = Inf;
             end
 
-            input.WALL    = WALL;
-            input.LBU     = -ones(NU,1);
-            input.UBU     = ones(NU,1);
-            output_acados = acados_MPCstep(input);
+            input_acados.WALL    = WALL;
+            input_acados.LBU     = -ones(NU,1);
+            input_acados.UBU     = ones(NU,1);
+            output_acados = acados_MPCstep(input_acados);
         end
 
         if CHECK_AGAINST_REF_SOL
@@ -553,11 +557,15 @@ if DETAILED_TIME
    logged_data.prepTime = ACADOtprepLog;
 end
 
-if CHECK_AGAINST_ACADOS
-   logged_data.acados_qptime     = acados_solve_qp_min_times';
-   logged_data.acados_error_iter = max(abs(acados_solve_qp_iters - ACADOnIter));
-   logged_data.acados_error_sol  = max(acados_solve_qp_error);
+if isempty(sim_opts.CHECK_AGAINST_ACADOS) && sim_opts.NRUNS > 1
+    code_generate_acado_stats(sim_opts, logged_data.cputime-logged_data.simtime, logged_data.iters, '../../acados/examples/c/ocp_qp_bugs');
+end
 
+% if CHECK_AGAINST_ACADOS
+%    logged_data.acados_qptime     = acados_solve_qp_min_times';
+%    logged_data.acados_error_iter = acados_solve_qp_iters - ACADOnIter;
+%    logged_data.acados_error_sol  = acados_solve_qp_error;
+% 
 %    if 1
 %        disp(['MAX ERROR IN NUMBER OF ITERATIONS: ' num2str(logged_data.acados_error_iter)]);
 %        disp(['MAX ERROR IN SOLUTION:             ' num2str(logged_data.acados_error_sol)]);
@@ -568,8 +576,9 @@ if CHECK_AGAINST_ACADOS
 % %        figure
 %        plot((minACADOtLog-minACADOtSimLog)./acados_solve_qp_min_times')
 %        title('Speedup of acados vs acado')
+%        [(minACADOtLog-minACADOtSimLog) acados_solve_qp_min_times' logged_data.acados_error_iter' logged_data.acados_error_sol']
 %        keyboard
 %    end
-end
+% end
 
 end

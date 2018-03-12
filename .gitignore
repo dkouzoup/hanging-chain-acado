@@ -10,4 +10,8 @@
 code/logs/*.mat
 
 # acados
-external/acados_install/*
+external/acados_install*
+
+# ACADO
+code/export_MPC/*
+code/export_SIM/*
