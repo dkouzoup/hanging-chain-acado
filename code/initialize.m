@@ -1,4 +1,8 @@
-function [ output_args ] = initialize( )
+function initialize(USE_ACADO_DEV)
+
+if nargin < 1 || isempty(USE_ACADO_DEV)
+    USE_ACADO_DEV = 1;
+end
 
 % set up matlab path properly and compile libs
 
@@ -9,9 +13,7 @@ if isempty(first_matlab_run)
     first_matlab_run = 0;
     
     disp('... initializing')
-    
-    USE_ACADO_DEV = 1; % leave to 1 if HPMPC is used in the benchmark
-    
+        
     addpath([pwd filesep 'utils'])
     
     % remove acado installations from path and add version of this repository

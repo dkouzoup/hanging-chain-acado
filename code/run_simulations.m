@@ -6,7 +6,9 @@ clear global;
 close all;
 clc
 
-initialize()
+USE_ACADO_DEV = 1; % leave to 1 if HPMPC is used in the benchmark or to measure timings
+
+initialize(USE_ACADO_DEV)
 
 %% Choose simulation options
 
