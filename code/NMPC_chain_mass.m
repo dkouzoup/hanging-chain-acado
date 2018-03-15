@@ -50,7 +50,7 @@ DETAILED_TIME = 0;              % if 1, time preparation/feedback step: ONLY WOR
 
 CHECK_AGAINST_REF_SOL = 0;      % if 1, exports and compiles reference solver (qpOASES, CN2 by default)
 
-CHECK_AGAINST_ACADOS = 0;       % either 0 or acados_solver_name
+CHECK_AGAINST_ACADOS = [];      % either 0 or acados_solver_name
 
 SOL_TOL = 1e-6;                 % maximum accepted 2-norm of the deviation of the solution from the reference solution
                                 % (only used if CHECK_AGAINST_REF_SOL = 1).
@@ -143,6 +143,9 @@ if SIM_COMPILE
     cd export_SIM
     sim_path = '../';
     make_acado_integrator([sim_path sim_name])
+    if ~isempty(CHECK_AGAINST_ACADOS)
+        make_acado_integrator([sim_path sim_name '_acados'])
+    end
     cd ..
 end
 
