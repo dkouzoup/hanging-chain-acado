@@ -30,6 +30,8 @@ ACADOSOLVER   = 'qpOASES_e_N2'; % 'qpDUNES_BXX' (with XX block size, 0 for clipp
 
 WARMSTART     = 1;              % applicable for qpOASES/qpDUNES
 
+WARMSTART     = 1;              % applicable to qpOASES only
+
 VISUAL        = 1;              % set to 1 to visualize chain of masses (only for the first out of the NRUNS simulations)
 
 WALL          = -0.1;           % wall position (re-export if changed)
@@ -183,6 +185,7 @@ if strcmp(ACADOSOLVER,'qpOASES_N3')
     if WARMSTART
         mpc.set( 'HOTSTART_QP',         'YES'                );
     end
+
 elseif strcmp(ACADOSOLVER,'qpOASES_N2')
 
     mpc.set( 'QP_SOLVER',               'QP_QPOASES'         );
@@ -190,6 +193,7 @@ elseif strcmp(ACADOSOLVER,'qpOASES_N2')
     if WARMSTART
         mpc.set( 'HOTSTART_QP',         'YES'                );
     end
+
 elseif strcmp(ACADOSOLVER,'qpOASES_e_N3')
 
     mpc.set( 'QP_SOLVER',               'QP_QPOASES3'        );
@@ -197,6 +201,7 @@ elseif strcmp(ACADOSOLVER,'qpOASES_e_N3')
     if WARMSTART
         mpc.set( 'HOTSTART_QP',         'YES'                );
     end
+
 elseif strcmp(ACADOSOLVER,'qpOASES_e_N2')
 
     mpc.set( 'QP_SOLVER',               'QP_QPOASES3'        );
@@ -204,13 +209,15 @@ elseif strcmp(ACADOSOLVER,'qpOASES_e_N2')
     if WARMSTART
         mpc.set( 'HOTSTART_QP',         'YES'                );
     end
+
 elseif contains(ACADOSOLVER,'qpDUNES') && QPCONDENSINGSTEPS <= 1
 
     mpc.set( 'QP_SOLVER',               'QP_QPDUNES'         );
     mpc.set( 'SPARSE_QP_SOLUTION',      'SPARSE_SOLVER'      );
-    if WARMSTART
+    if WARMSTART % TODO: IS THIS USED ANYWHERE IN ACADO?!
         mpc.set( 'HOTSTART_QP',         'YES'                );
     end
+
 elseif contains(ACADOSOLVER,'qpDUNES') && QPCONDENSINGSTEPS > 1
 
     mpc.set( 'QP_SOLVER',               'QP_QPDUNES'         );
@@ -392,7 +399,7 @@ for iRUNS = 1:NRUNS
             input_acados.acado_solver = ACADOSOLVER;
             input_acados.acado_sol = output;
             input_acados.nmasses = NMASS;
-            
+
             if ~isempty(QPCONDENSINGSTEPS)
                 input_acados.N2 = N/QPCONDENSINGSTEPS;
             else
@@ -568,7 +575,7 @@ end
 %    logged_data.acados_qptime     = acados_solve_qp_min_times';
 %    logged_data.acados_error_iter = acados_solve_qp_iters - ACADOnIter;
 %    logged_data.acados_error_sol  = acados_solve_qp_error;
-% 
+%
 %    if 1
 %        disp(['MAX ERROR IN NUMBER OF ITERATIONS: ' num2str(logged_data.acados_error_iter)]);
 %        disp(['MAX ERROR IN SOLUTION:             ' num2str(logged_data.acados_error_sol)]);
