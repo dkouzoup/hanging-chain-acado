@@ -27,6 +27,8 @@ NRUNS         = 5;              % run closed-loop simulation NRUNS times and sto
 
 ACADOSOLVER   = 'qpDUNES_B0';   % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_N3', 'FORCES', 'HPMPC'
 
+WARMSTART     = 1;              % applicable to qpOASES only
+
 VISUAL        = 1;              % set to 1 to visualize chain of masses (only for the first out of the NRUNS simulations)
 
 WALL          = -0.1;           % wall position (re-export if changed)
@@ -169,17 +171,23 @@ if strcmp(ACADOSOLVER,'qpOASES_N3')
 
     mpc.set( 'QP_SOLVER',               'QP_QPOASES'         );
     mpc.set( 'SPARSE_QP_SOLUTION',      'CONDENSING'         );
-
+    if WARMSTART
+        mpc.set( 'HOTSTART_QP',         'YES'                );
+    end
+    
 elseif strcmp(ACADOSOLVER,'qpOASES_N2')
 
     mpc.set( 'QP_SOLVER',               'QP_QPOASES'         );
     mpc.set( 'SPARSE_QP_SOLUTION',      'FULL_CONDENSING_N2' );
-
+    if WARMSTART
+        mpc.set( 'HOTSTART_QP',         'YES'                );
+    end
+    
 elseif contains(ACADOSOLVER,'qpDUNES') && QPCONDENSINGSTEPS <= 1
 
     mpc.set( 'QP_SOLVER',               'QP_QPDUNES'         );
     mpc.set( 'SPARSE_QP_SOLUTION',      'SPARSE_SOLVER'      );
-
+    
 elseif contains(ACADOSOLVER,'qpDUNES') && QPCONDENSINGSTEPS > 1
 
     mpc.set( 'QP_SOLVER',               'QP_QPDUNES'         );
