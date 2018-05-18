@@ -45,7 +45,7 @@ sim_opts.NRUNS       = 5;
 sim_opts.MPC_EXPORT  = 1;
 sim_opts.MPC_COMPILE = 1;
 sim_opts.N           = 80;
-sim_opts.CHECK_AGAINST_REF_SOL = 1;
+sim_opts.CHECK_AGAINST_REF_SOL = 0;
 sim_opts.SOL_TOL = 1e-6;
 
 set_of_M  = [0 2:14 15:5:40];
