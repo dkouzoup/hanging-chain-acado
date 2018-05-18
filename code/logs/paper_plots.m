@@ -10,9 +10,10 @@ addpath([pwd filesep '../utils']);
 close all
 clear variables
 
-SAVEFIGS = 1;
+REMOVE_FORCES = 1;
+SAVEFIGS      = 1;
 
-NM = 3;  % number of masses 
+NM = 5;  % number of masses 
 
 xlims  = [10 80];
 
@@ -35,7 +36,7 @@ plot_1 = logs;
 
 for ii = length(plot_1):-1:1
     
-    if ~contains(plot_1{ii}.solver, 'qpOASES') %&& ~strcmp(plot_1{ii}.solver, 'FORCES')
+    if ~contains(plot_1{ii}.solver, 'qpOASES')
         plot_1(ii) = [];
     end
     
@@ -44,18 +45,17 @@ end
 plot_logs(plot_1, false, false, [], xlims, ylims1);
 
 if SAVEFIGS
-    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_1_M' num2str(NM) '.pdf'])
+    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/solvers_1_M' num2str(NM) '.pdf'])
 end
 
 plot_logs(plot_1, false, true, [], xlims, ylims1);
 
 if SAVEFIGS
-    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_1_M' num2str(NM) '_log.pdf'])
+    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/solvers_1_M' num2str(NM) '_log.pdf'])
 end
 
 % second plot 
 
-% plot_2 = [];
 load(['M' num2str(NM) '_most_solvers.mat'], 'logs')
 plot_2 = logs;
 % plot_2 = [plot_2 logs];
@@ -64,7 +64,7 @@ plot_2 = logs;
 
 for ii = length(plot_2):-1:1
     
-    if contains(plot_2{ii}.solver, 'qpOASES') %|| strcmp(plot_2{ii}.solver, 'FORCES')
+    if contains(plot_2{ii}.solver, 'qpOASES') || (REMOVE_FORCES && strcmp(plot_2{ii}.solver, 'FORCES'))
         plot_2(ii) = [];
     end
     
@@ -74,14 +74,14 @@ f1 = plot_logs(plot_1, true, false, [], xlims, ylims2);
 plot_logs(plot_2, false, false, f1, xlims, ylims2);
 
 if SAVEFIGS
-    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_2_M' num2str(NM) '.pdf'])
+    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/solvers_2_M' num2str(NM) '.pdf'])
 end
 
 f2 = plot_logs(plot_1, true, true, [], xlims, ylims2);
 plot_logs(plot_2, false, true, f2, xlims, ylims2);
 
 if SAVEFIGS
-    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_2_M' num2str(NM) '_log.pdf'])
+    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/solvers_2_M' num2str(NM) '_log.pdf'])
 end
 
 % third plot
@@ -94,14 +94,14 @@ ff1 = plot_logs([plot_1 plot_2], true, false, [], xlims, ylims2);
 plot_logs(plot_3, false, false, ff1, xlims, ylims2);
 
 if SAVEFIGS
-   exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_3_M' num2str(NM) '.pdf'])
+   exportfig(['~/Documents/Repositories/GIT/QP_story/paper/solvers_3_M' num2str(NM) '.pdf'])
 end
 
 ff2 = plot_logs([plot_1 plot_2], true, true, [], xlims, ylims2);
 plot_logs(plot_3, false, true, ff2, xlims, ylims2);
 
 if SAVEFIGS
-   exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/solvers_3_M' num2str(NM) '_log.pdf'])
+   exportfig(['~/Documents/Repositories/GIT/QP_story/paper/solvers_3_M' num2str(NM) '_log.pdf'])
 end
 
 %% plot partial condensing
@@ -115,14 +115,14 @@ load([pwd filesep 'M345_HPMPC_BC'], 'logs')
 plot_partial_condensing(logs)
 
 if SAVEFIGS
-    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/bc_hpmpc.pdf'])
+    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/bc_hpmpc.pdf'])
 end
 
 load([pwd filesep 'M345_QPDUNES_BC'], 'logs')
 plot_partial_condensing(logs)
 
 if SAVEFIGS
-    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/figures/bc_qpdunes.pdf'])
+    exportfig(['~/Documents/Repositories/GIT/QP_story/paper/bc_qpdunes.pdf'])
 end
 
 
