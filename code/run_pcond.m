@@ -41,7 +41,7 @@ end
 
 SOLVER = 'HPMPC';
 
-sim_opts.NRUNS       = 1;
+sim_opts.NRUNS       = 5;
 sim_opts.MPC_EXPORT  = 1;
 sim_opts.MPC_COMPILE = 1;
 sim_opts.N           = 80;
