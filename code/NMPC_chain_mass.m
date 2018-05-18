@@ -346,10 +346,10 @@ for iRUNS = 1:NRUNS
 
         if CHECK_AGAINST_REF_SOL
             ref_output = acado_ref_MPCstep(input);
-            sol_err = max(norm(output.x - ref_output.x, Inf), norm(output.u - ref_output.u, Inf));
+            sol_err = norm([reshape(output.x - ref_output.x, (N+1)*NX,1); reshape(output.u - ref_output.u, N*NU, 1)], Inf);
             val_err = abs(output.info.objValue - ref_output.info.objValue)/max(1, ref_output.info.objValue);
             if sol_err > SOL_TOL || val_err > SOL_TOL
-%                 keyboard
+                keyboard
                 warning(['failed to meet accuracy of ', num2str(SOL_TOL), '( sol_err = ', ...
                     num2str(sol_err), ', val_err = ', num2str(val_err), ')' ])
             end

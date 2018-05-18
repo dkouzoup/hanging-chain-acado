@@ -53,9 +53,9 @@ sim_opts.MPC_EXPORT  = 1;
 sim_opts.MPC_COMPILE = 1;
 sim_opts.SIM_EXPORT  = 1;
 sim_opts.SIM_COMPILE = 1;
-sim_opts.WARMSTART   = 1;
+sim_opts.WARMSTART   = 0;
 sim_opts.CHECK_AGAINST_REF_SOL = 0;
-sim_opts.SOL_TOL = 1e-3;
+sim_opts.SOL_TOL = 1e-6;
 
 %% Run simulations
 
@@ -105,7 +105,19 @@ if sim_opts.CHECK_AGAINST_REF_SOL
             max_val_err = err;
         end
     end
-    display(['max err = ', num2str(max_val_err)])
+    display(['max val err = ', num2str(max_val_err)])
 end
+
+if sim_opts.CHECK_AGAINST_REF_SOL
+    max_sol_err = 0;
+    for i = 1:length(logs)
+        err = max(logs{i}.sol_accuracy);
+        if err > max_sol_err
+            max_sol_err = err;
+        end
+    end
+    display(['max sol err = ', num2str(max_sol_err)])
+end
+
 
 delete_temp_files();
