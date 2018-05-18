@@ -53,7 +53,7 @@ sim_opts.MPC_EXPORT  = 1;
 sim_opts.MPC_COMPILE = 1;
 sim_opts.SIM_EXPORT  = 1;
 sim_opts.SIM_COMPILE = 1;
-sim_opts.WARMSTART   = 1;
+sim_opts.WARMSTART   = 0;
 sim_opts.CHECK_AGAINST_REF_SOL = 1;
 sim_opts.SOL_TOL = 1e-6;
 
