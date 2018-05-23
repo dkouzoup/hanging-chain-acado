@@ -10,8 +10,7 @@ addpath([pwd filesep '../utils']);
 close all
 clear variables
 
-REMOVE_FORCES = 1;
-SAVEFIGS      = 1;
+SAVEFIGS = 0;
 
 NM = 5;  % number of masses 
 
@@ -30,7 +29,7 @@ end
 
 % first plot 
 
-load(['M' num2str(NM) '_most_solvers.mat'], 'logs')
+load(['M' num2str(NM) '_all_solvers.mat'], 'logs')
 
 plot_1 = logs;
 
@@ -56,15 +55,11 @@ end
 
 % second plot 
 
-load(['M' num2str(NM) '_most_solvers.mat'], 'logs')
 plot_2 = logs;
-% plot_2 = [plot_2 logs];
-% load(['M' num2str(NM) '_HPMPC_B' num2str(NB) '.mat'], 'logs')
-% plot_2 = [plot_2 logs];
 
 for ii = length(plot_2):-1:1
     
-    if contains(plot_2{ii}.solver, 'qpOASES') || (REMOVE_FORCES && strcmp(plot_2{ii}.solver, 'FORCES'))
+    if contains(plot_2{ii}.solver, 'qpOASES') || contains(plot_2{ii}.solver, 'B10')
         plot_2(ii) = [];
     end
     
@@ -86,9 +81,13 @@ end
 
 % third plot
 
-
-load(['M' num2str(NM) '_bc_solvers.mat'], 'logs')
 plot_3 = logs;
+
+for ii = length(plot_3):-1:1 
+    if contains(plot_3{ii}.solver, 'qpOASES') || contains(plot_3{ii}.solver, 'B0')
+        plot_3(ii) = [];
+    end
+end
 
 ff1 = plot_logs([plot_1 plot_2], true, false, [], xlims, ylims2);
 plot_logs(plot_3, false, false, ff1, xlims, ylims2);
@@ -109,16 +108,16 @@ end
 close all
 clear variables
 
-SAVEFIGS = 1;
+SAVEFIGS = 0;
 
-load([pwd filesep 'M345_HPMPC_BC'], 'logs')
+load([pwd filesep 'PC_HPMPC'], 'logs')
 plot_partial_condensing(logs)
 
 if SAVEFIGS
     exportfig(['~/Documents/Repositories/GIT/QP_story/paper/bc_hpmpc.pdf'])
 end
 
-load([pwd filesep 'M345_QPDUNES_BC'], 'logs')
+load([pwd filesep 'PC_HPMPC'], 'logs')
 plot_partial_condensing(logs)
 
 if SAVEFIGS
