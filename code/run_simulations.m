@@ -44,7 +44,7 @@ end
 % 'HPMPC_BX'    HPMPC with (its own) partial condensing and block size X
 % 'FORCES'      FORCES QP solver (if license is available)
 
-set_of_solvers = {'qpOASES_N3', 'qpOASES_N2', 'qpDUNES_B0', 'HPMPC_B0'};
+set_of_solvers = {'qpOASES_N3', 'qpOASES_N2', 'qpDUNES_B0', 'HPMPC_B0', 'qpDUNES_B10', 'HPMPC_B10'};
 set_of_N       = 10:10:100;
 
 sim_opts.NMASS       = 4;
@@ -54,8 +54,9 @@ sim_opts.MPC_COMPILE = 1;
 sim_opts.SIM_EXPORT  = 1;
 sim_opts.SIM_COMPILE = 1;
 sim_opts.WARMSTART   = 0;
+
 sim_opts.CHECK_AGAINST_REF_SOL = 0;
-sim_opts.SOL_TOL = 1e-6;
+sim_opts.SOL_TOL = 1e-5;
 
 %% Run simulations
 
