@@ -1,6 +1,13 @@
-function output = fiordos_MPCstep( input )
+function output = fiordos_MPCstep( input, time_)
 
-% CAUTION!! WEIGHTS OVERWRITTEN DURING CODE GENERATION
+persistent sol_x sol_la;
+
+if time_ == 0
+    sol_x = []; 
+    sol_la = [];
+end
+
+% CAUTION!! WEIGHTS HARDCODED DURING CODE GENERATION
 
 %% extract data from input
 
@@ -102,10 +109,12 @@ for ii = 1:N
     eval(['mparams.X' num2str(N+ii) '.u = delta_ubx{' num2str(ii+1) '};']);
 end
 
-tic;
-mres = fiordos_mpc_mex(mparams, msetgs);
-tmp_cputime = toc;
+if time_ > 0 && input.warmstart
+    msetgs.approach.apprInitX  = sol_x;                  
+    msetgs.approach.apprInitLa = sol_la;
+end
 
+mres = fiordos_mpc_mex(mparams, msetgs);
 disp(['fiordos returned status ' num2str(mres.exitflag) ' in ' num2str(mres.iter) ' iterations'])
 
 fiordos_delta_x = [delta_lbx{1} reshape(mres.x(N*NU+1:end), NX, N)];
@@ -113,6 +122,11 @@ fiordos_delta_u = reshape(mres.x(1:N*NU), NU, N);
 
 fiordos_x = state_traj + fiordos_delta_x;
 fiordos_u = control_traj + fiordos_delta_u;
+
+if input.warmstart
+    sol_x  = mres.x;
+    sol_la = mres.la;
+end
 
 if 0
     disp('')
@@ -141,7 +155,7 @@ end
 output.x   = fiordos_x';
 output.u   = fiordos_u';
 
-output.info.QP_time = tmp_cputime;
+output.info.QP_time = mres.cputime;
 output.info.nIterations = mres.iter;
 output.info.status = mres.exitflag;
 

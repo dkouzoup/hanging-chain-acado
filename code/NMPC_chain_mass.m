@@ -29,8 +29,6 @@ ACADOSOLVER   = 'qpOASES_e_N2'; % 'qpDUNES_BXX' (with XX block size, 0 for clipp
 
 WARMSTART     = 1;              % applicable for qpOASES/qpDUNES
 
-WARMSTART     = 1;              % applicable to qpOASES only
-
 VISUAL        = 1;              % set to 1 to visualize chain of masses (only for the first out of the NRUNS simulations)
 
 WALL          = -0.1;           % wall position (re-export if changed)
@@ -52,6 +50,10 @@ DETAILED_TIME = 0;              % if 1, time preparation/feedback step: ONLY WOR
 CHECK_AGAINST_REF_SOL = 0;      % if 1, exports and compiles reference solver (qpOASES, CN2 by default)
 
 CHECK_AGAINST_FIORDOS = 1;      % either 0 or 1
+
+FIORDOS_EXPORT        = 1;
+
+FIORDOS_COMPILE       = 1;
 
 SOL_TOL = 1e-6;                 % maximum accepted 2-norm of the deviation of the solution from the reference solution
                                 % (only used if CHECK_AGAINST_REF_SOL = 1).
@@ -326,7 +328,7 @@ end
 
 
 if CHECK_AGAINST_FIORDOS
-   code_generate_fiodos(N, NX, NU); 
+   code_generate_fiodos(N, NX, NU, FIORDOS_EXPORT, FIORDOS_COMPILE); 
 end
 
 %% Closed loop simulations
@@ -338,7 +340,7 @@ if CHECK_AGAINST_FIORDOS
 end
 
 for iRUNS = 1:NRUNS
-
+    
     X0   = fsolve_ref;
     Xref = repmat(fsolve_ref.',N+1,1);
     Uref = zeros(N,NU);
@@ -400,14 +402,14 @@ for iRUNS = 1:NRUNS
             
             % Solve NMPC OCP with fiordos
             
-            % input_fiordos.warmstart = WARMSTART; % TODO
+            input_fiordos.warmstart = WARMSTART;
             input_fiordos.max_iter  = 100000;
             input_fiordos.acado_sol = output;
 
             input_fiordos.WALL    = WALL;
             input_fiordos.LBU     = -ones(NU,1);
             input_fiordos.UBU     = ones(NU,1);
-            output_fiordos        = fiordos_MPCstep(input_fiordos);
+            output_fiordos        = fiordos_MPCstep(input_fiordos, time(end));
         end
 
         if CHECK_AGAINST_REF_SOL
@@ -563,7 +565,7 @@ logged_data.val_accuracy = val_accuracy;
 if DETAILED_TIME
    logged_data.prepTime = ACADOtprepLog;
 end
-keyboard
+
 if CHECK_AGAINST_FIORDOS
    logged_data.fiordos_qptime     = fiordos_solve_qp_min_times';
    logged_data.fiordos_iter       = fiordos_solve_qp_iters;
