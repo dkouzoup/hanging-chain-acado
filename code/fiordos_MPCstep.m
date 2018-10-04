@@ -7,8 +7,6 @@ if time_ == 0
     sol_la = [];
 end
 
-% CAUTION!! WEIGHTS HARDCODED DURING CODE GENERATION
-
 %% extract data from input
 
 NX           =  size(input.x,2);
@@ -108,6 +106,8 @@ for ii = 1:N
     eval(['mparams.X' num2str(N+ii) '.u = delta_ubx{' num2str(ii+1) '};']);
 end
 
+mparams.H = diag(blkdiag(kron(eye(N), R),  kron(eye(N-1), Q), QN));
+
 if time_ > 0 && input.warmstart
     msetgs.approach.apprInitX  = sol_x;                  
     msetgs.approach.apprInitLa = sol_la;
@@ -159,6 +159,10 @@ output.u   = fiordos_u';
 
 if isfield(mres, 'cputime')
     output.info.QP_time = mres.cputime;
+    
+    if 0
+        fprintf('\n\nTIMING IN C CODE %3.2f TIMES FASTER\n\n', tmp_cputime/mres.cputime);
+    end
 else
     output.info.QP_time = nan;    
 end

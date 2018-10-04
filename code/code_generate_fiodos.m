@@ -5,7 +5,7 @@ function code_generate_fiodos(N, NX, NU, FIORDOS_EXPORT, FIORDOS_COMPILE)
 
 
 % 'dual' or 'primal-dual'
-APPROACH = 'primal-dual';
+APPROACH = 'dual';
 tol      = 1e-3;
 maxit    = 100;
 
@@ -22,11 +22,6 @@ end
 
 M = (NX/3 - 1)/2;
 
-% weights
-R  = 0.01*eye(3);
-Q  = blkdiag(25*eye(3), 25*eye(3*M), 1*eye(3*M));
-QN = blkdiag(25*eye(3), 25*eye(3*M), 1*eye(3*M));
-
 %% SET UP PROBLEM
 
 % TODO: CAN WE DO IT WITHOUT INFS?
@@ -38,10 +33,7 @@ ZZ.addSet(1:N, EssBox(NU, 'l', 'param', 'u', 'param'));
 % state bounds (x0 in equality constraints)
 ZZ.addSet(N+(1:N),EssBox(NX, 'l', 'param','u', 'param'));
 
-H = blkdiag(kron(eye(N), R),  kron(eye(N-1), Q), QN);
-
-op = OptProb('H', H, 'g', 'param', 'X', ZZ, 'Ae', 'param', 'be', 'param', 'me', N*NX);
-
+op = OptProb('H', 'param.diag', 'g', 'param', 'X', ZZ, 'Ae', 'param', 'be', 'param', 'me', N*NX);
 
 %% CODE GENERATE
 
@@ -54,7 +46,7 @@ if FIORDOS_EXPORT
         s = Solver(op, 'approach', APPROACH, 'algo', 'fgm');
         s.setSettings('approach', 'stopg', true, 'stopgEpsPrimal', tol, 'stopgEpsDual', tol, 'apprMaxit', maxit);
     else
-        s = Solver(op, 'approach', APPROACH, 'algoInner', 'fgm', 'algoOuter', 'fgm');
+        s = Solver(op, 'approach', APPROACH, 'algoOuter', 'fgm'); % 'algoInner', 'fgm',
         s.setSettings('algoOuter', 'stopg', true, 'stopgEps', tol, 'maxit', maxit);
     end
     
