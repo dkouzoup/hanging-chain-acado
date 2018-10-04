@@ -3,6 +3,12 @@ function code_generate_fiodos(N, NX, NU, FIORDOS_EXPORT, FIORDOS_COMPILE)
 %CODE_GENERATE_FIORDOS Code generate fiordos solver with time-varying
 % dynamics and bounds (due to relative QP)
 
+
+% 'dual' or 'primal-dual'
+APPROACH = 'primal-dual';
+tol      = 1e-3;
+maxit    = 100;
+
 % remove any previously generated controller
 if FIORDOS_EXPORT
     
@@ -43,10 +49,15 @@ cd('fiordos_controller')
 
 if FIORDOS_EXPORT
     
-    tol = 1e-3;
-        
-    s = Solver(op);
-    s.setSettings('approach', 'stopg', true, 'stopgEpsPrimal', tol, 'stopgEpsDual', tol);
+    % TODO: CLIPPING NOT POSSIBLE??
+    if strcmp(APPROACH, 'primal-dual')
+        s = Solver(op, 'approach', APPROACH, 'algo', 'fgm');
+        s.setSettings('approach', 'stopg', true, 'stopgEpsPrimal', tol, 'stopgEpsDual', tol, 'apprMaxit', maxit);
+    else
+        s = Solver(op, 'approach', APPROACH, 'algoInner', 'fgm', 'algoOuter', 'fgm');
+        s.setSettings('algoOuter', 'stopg', true, 'stopgEps', tol, 'maxit', maxit);
+    end
+    
     s.generateCode('prefix','fiordos_mpc_', 'forceOverwrite', true);
     % s.setAutoPrecond('algo'); % can't precondition due to changing data
     % s.setSettings('approach', 'inlineA',true); % not much improvement
@@ -76,8 +87,10 @@ if FIORDOS_EXPORT
         check_solve = strfind(fline, 'fiordos_mpc_solve(&params, &settings, &result, &work);');
         
         % augment output
-        check_output1 = strfind(fline, 'const char *fnames[] = {"la", "x", "iter", "exitflag"}');
-        check_output2 = strfind(fline, 'MRES = mxCreateStructMatrix(1,1, 4, fnames)');
+        check_output1a = strfind(fline, 'const char *fnames[] = {"la", "x", "iter", "exitflag"}');
+        check_output1b = strfind(fline, 'const char *fnames[] = {"la", "x", "d", "iter", "exitflag"}');
+        check_output2a = strfind(fline, 'MRES = mxCreateStructMatrix(1,1, 4, fnames)');
+        check_output2b = strfind(fline, 'MRES = mxCreateStructMatrix(1,1, 5, fnames)');
         check_output3 = strfind(fline, 'mxSetField(MRES, 0, "exitflag", tmp1);');
         
         % replace escape characters for printf
@@ -87,11 +100,17 @@ if FIORDOS_EXPORT
         if ~isempty(check_header) %#ok<*STREMP>
             fline = [fline '\n#include "timing.h"'];
         end
-        if ~isempty(check_output1)
+        if ~isempty(check_output1a)
             fline = 'const char *fnames[] = {"la", "x", "iter", "exitflag", "cputime"};';
         end
-        if ~isempty(check_output2)
+        if ~isempty(check_output1b)
+            fline = 'const char *fnames[] = {"la", "x", "d", "iter", "exitflag", "cputime"};';
+        end
+        if ~isempty(check_output2a)
             fline = 'MRES = mxCreateStructMatrix(1,1, 5, fnames);';
+        end
+        if ~isempty(check_output2b)
+            fline = 'MRES = mxCreateStructMatrix(1,1, 6, fnames);';
         end
         if ~isempty(check_output3)
             fline = [fline '\n\n\t\ttmp1 = mxCreateDoubleMatrix(1,1,mxREAL);\n\t\t*mxGetPr(tmp1) = (double) cputime;\n\t\tmxSetField(MRES, 0, "cputime", tmp1);'];

@@ -93,7 +93,6 @@ g = [vertcat(GradU{:}); vertcat(GradX{2:end})];
 
 mparams = struct();
 msetgs  = struct();
-msetgs.approach.apprMaxit = input.max_iter;
 
 mparams.Ae = [Aeu Aex];
 mparams.be = be;
@@ -114,7 +113,10 @@ if time_ > 0 && input.warmstart
     msetgs.approach.apprInitLa = sol_la;
 end
 
+tic;
 mres = fiordos_mpc_mex(mparams, msetgs);
+tmp_cputime = toc;
+
 disp(['fiordos returned status ' num2str(mres.exitflag) ' in ' num2str(mres.iter) ' iterations'])
 
 fiordos_delta_x = [delta_lbx{1} reshape(mres.x(N*NU+1:end), NX, N)];
@@ -155,7 +157,12 @@ end
 output.x   = fiordos_x';
 output.u   = fiordos_u';
 
-output.info.QP_time = mres.cputime;
+if isfield(mres, 'cputime')
+    output.info.QP_time = mres.cputime;
+else
+    output.info.QP_time = nan;    
+end
+
 output.info.nIterations = mres.iter;
 output.info.status = mres.exitflag;
 
