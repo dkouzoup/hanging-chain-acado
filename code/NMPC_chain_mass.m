@@ -49,14 +49,10 @@ DETAILED_TIME = 0;              % if 1, time preparation/feedback step: ONLY WOR
 
 CHECK_AGAINST_REF_SOL = 0;      % if 1, exports and compiles reference solver (qpOASES, CN2 by default)
 
-CHECK_AGAINST_FIORDOS = 1;      % either 0 or 1
-
-FIORDOS_EXPORT        = 1;
-
-FIORDOS_COMPILE       = 1;
-
 SOL_TOL = 1e-6;                 % maximum accepted 2-norm of the deviation of the solution from the reference solution
                                 % (only used if CHECK_AGAINST_REF_SOL = 1).
+
+SECONDARY_SOLVER = 'dfgm';   % empty, 'fiordos', 'dfgm' or 'osqp'
 
 %% Load simulation options and overwrite local ones
 
@@ -146,7 +142,7 @@ if SIM_COMPILE
     cd export_SIM
     sim_path = '../';
     make_acado_integrator([sim_path sim_name])
-    if CHECK_AGAINST_FIORDOS
+    if ~isempty(SECONDARY_SOLVER)
         make_acado_integrator([sim_path sim_name '_fiordos'])
     end
     cd ..
@@ -327,16 +323,21 @@ if MPC_COMPILE
 end
 
 
-if CHECK_AGAINST_FIORDOS
-   code_generate_fiodos(N, NX, NU, FIORDOS_EXPORT, FIORDOS_COMPILE); 
+if strcmp(SECONDARY_SOLVER, 'fiordos')
+   fiordos_code_generate(N, NX, NU); 
 end
+
+if strcmp(SECONDARY_SOLVER, 'dfgm')
+   dfgm_compile(N, NX, NU); 
+end
+
 
 %% Closed loop simulations
 
 % minimum timings of solver over NRUNS
 minACADOtLog = [];
-if CHECK_AGAINST_FIORDOS
-    fiordos_solve_qp_min_times = [];
+if ~isempty(SECONDARY_SOLVER)
+    secondary_solve_qp_min_times = [];
 end
 
 for iRUNS = 1:NRUNS
@@ -367,10 +368,10 @@ for iRUNS = 1:NRUNS
     sol_accuracy  = [];  % log accuracy (deviation from reference solution) of the solution (if available)
     val_accuracy  = [];  % log accuracy (deviation from reference obj value) of the solution (if available)
 
-    if CHECK_AGAINST_FIORDOS
-        fiordos_solve_qp_tmp_times = [];
-        fiordos_solve_qp_iters     = [];
-        fiordos_solve_qp_error     = [];
+    if ~isempty(SECONDARY_SOLVER)
+        secondary_solve_qp_tmp_times = [];
+        secondary_solve_qp_iters     = [];
+        secondary_solve_qp_error     = [];
     end
 
     if DETAILED_TIME
@@ -396,20 +397,30 @@ for iRUNS = 1:NRUNS
         input.x0 = state_sim(end,:);
         output   = acado_MPCstep(input);
 
-        if CHECK_AGAINST_FIORDOS
+        if ~isempty(SECONDARY_SOLVER)
             
-            input_fiordos = input;
+            input_secondary = input;
+            input_secondary.acado_sol = output;
+            input_secondary.WALL    = WALL;
+            input_secondary.LBU     = -ones(NU,1);
+            input_secondary.UBU     = ones(NU,1);
             
-            % Solve NMPC OCP with fiordos
+            switch SECONDARY_SOLVER
+                
+                case 'fiordos'
+                    
+                    input_secondary.warmstart = WARMSTART;
+                    output_secondary = fiordos_MPCstep(input_secondary, time(end));
+                    
+                case 'dfgm'
+                  
+                    input_secondary.warmstart = WARMSTART;
+                    output_secondary = dfgm_MPCstep(input_secondary, time(end));
+                  
+                case 'osqp'
+                    % TODO
+            end
             
-            input_fiordos.warmstart = WARMSTART;
-            input_fiordos.max_iter  = 100000;
-            input_fiordos.acado_sol = output;
-
-            input_fiordos.WALL    = WALL;
-            input_fiordos.LBU     = -ones(NU,1);
-            input_fiordos.UBU     = ones(NU,1);
-            output_fiordos        = fiordos_MPCstep(input_fiordos, time(end));
         end
 
         if CHECK_AGAINST_REF_SOL
@@ -456,15 +467,15 @@ for iRUNS = 1:NRUNS
             ACADOtprepLog = [ACADOtprepLog; output.info.preparationTime];
         end
 
-        if CHECK_AGAINST_FIORDOS
+        if ~isempty(SECONDARY_SOLVER)
 
-            fiordos_solve_qp_tmp_times(end+1) = output_fiordos.info.QP_time;
-            fiordos_solve_qp_iters(end+1)     = output_fiordos.info.nIterations;
-            fiordos_solve_qp_error(end+1)     = norm([output_fiordos.x(:); output_fiordos.u(:)] - [output.x(:); output.u(:)], inf);
+            secondary_solve_qp_tmp_times(end+1) = output_secondary.info.QP_time;
+            secondary_solve_qp_iters(end+1)     = output_secondary.info.nIterations;
+            secondary_solve_qp_error(end+1)     = norm([output_secondary.x(:); output_secondary.u(:)] - [output.x(:); output.u(:)], inf);
 
             fprintf('ACADO:\t %d\t %f\n', niter, 1000*(ACADOtLog(end) - ACADOtSimLog(end)));
-            fprintf('FiOrdOs:\t %d\t %f\n', output_fiordos.info.nIterations, 1000*output_fiordos.info.QP_time);
-            fprintf('solution gap:\t %5.e\n', norm(output_fiordos.x(:)-output.x(:),inf));
+            fprintf('FiOrdOs:\t %d\t %f\n', output_secondary.info.nIterations, 1000*output_secondary.info.QP_time);
+            fprintf('solution gap:\t %5.e\n', norm(output_secondary.x(:)-output.x(:),inf));
 %             keyboard
         end
 
@@ -484,8 +495,8 @@ for iRUNS = 1:NRUNS
             % do not take these instances into account for timings
             ACADOtLog(end) = NaN;
             ACADOtSimLog(end) = NaN;
-            if CHECK_AGAINST_FIORDOS
-                fiordos_solve_qp_tmp_times(end) = NaN;
+            if ~isempty(SECONDARY_SOLVER)
+                secondary_solve_qp_tmp_times(end) = NaN;
             end
         end
 
@@ -521,8 +532,8 @@ for iRUNS = 1:NRUNS
         if DETAILED_TIME
             minACADOtprepLog = ACADOtprepLog;
         end
-        if CHECK_AGAINST_FIORDOS
-            fiordos_solve_qp_min_times = fiordos_solve_qp_tmp_times;
+        if ~isempty(SECONDARY_SOLVER)
+            secondary_solve_qp_min_times = secondary_solve_qp_tmp_times;
         end
     else
         minACADOtLog = min(ACADOtLog, minACADOtLog);
@@ -531,8 +542,8 @@ for iRUNS = 1:NRUNS
         if DETAILED_TIME
             minACADOtprepLog = min(ACADOtprepLog, minACADOtprepLog);
         end
-        if CHECK_AGAINST_FIORDOS
-            fiordos_solve_qp_min_times = min(fiordos_solve_qp_tmp_times, fiordos_solve_qp_min_times);
+        if ~isempty(SECONDARY_SOLVER)
+            secondary_solve_qp_min_times = min(secondary_solve_qp_tmp_times, secondary_solve_qp_min_times);
         end
     end
 end
@@ -566,10 +577,10 @@ if DETAILED_TIME
    logged_data.prepTime = ACADOtprepLog;
 end
 
-if CHECK_AGAINST_FIORDOS
-   logged_data.fiordos_qptime     = fiordos_solve_qp_min_times';
-   logged_data.fiordos_iter       = fiordos_solve_qp_iters;
-   logged_data.fiordos_error_sol  = fiordos_solve_qp_error;
+if ~isempty(SECONDARY_SOLVER)
+   logged_data.fiordos_qptime     = secondary_solve_qp_min_times';
+   logged_data.fiordos_iter       = secondary_solve_qp_iters;
+   logged_data.fiordos_error_sol  = secondary_solve_qp_error;
 
    if 1
        disp(['MAX ERROR IN SOLUTION:          ' num2str(max(abs(logged_data.fiordos_error_sol)))]);
@@ -580,10 +591,10 @@ if CHECK_AGAINST_FIORDOS
 %        figure
        plot(minACADOtLog-minACADOtSimLog)
        hold on
-       plot(fiordos_solve_qp_min_times')
+       plot(secondary_solve_qp_min_times')
        title('CPU times for acado and fiordos')
        legend('acado','fiordos')
-       [(minACADOtLog-minACADOtSimLog) fiordos_solve_qp_min_times' logged_data.fiordos_error_sol']
+       [(minACADOtLog-minACADOtSimLog) secondary_solve_qp_min_times' logged_data.fiordos_error_sol']
        keyboard
    end
 end

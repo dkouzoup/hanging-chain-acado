@@ -1,16 +1,22 @@
-function code_generate_fiodos(N, NX, NU, FIORDOS_EXPORT, FIORDOS_COMPILE)
+function fiordos_code_generate(N, NX, NU)
 
 %CODE_GENERATE_FIORDOS Code generate fiordos solver with time-varying
 % dynamics and bounds (due to relative QP)
 
 
-% 'dual' or 'primal-dual'
+% % % % % % % % OPTIONS % % % % % % % % % % % % % % % % % % % % % % % % % %
+
+% APPROACH: 'dual' or 'primal-dual'
 APPROACH = 'dual';
 tol      = 1e-3;
 maxit    = 100;
+EXPORT   = 1;
+COMPILE  = 1;
+
+% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
 
 % remove any previously generated controller
-if FIORDOS_EXPORT
+if EXPORT
     
     if isdir('fiordos_controller')
         rmdir('fiordos_controller', 's')
@@ -39,7 +45,7 @@ op = OptProb('H', 'param.diag', 'g', 'param', 'X', ZZ, 'Ae', 'param', 'be', 'par
 
 cd('fiordos_controller')
 
-if FIORDOS_EXPORT
+if EXPORT
     
     % TODO: CLIPPING NOT POSSIBLE??
     if strcmp(APPROACH, 'primal-dual')
@@ -169,7 +175,7 @@ if FIORDOS_EXPORT
     
 end
 
-if FIORDOS_COMPILE
+if COMPILE
     fiordos_mpc_mex_make;
 end
 
