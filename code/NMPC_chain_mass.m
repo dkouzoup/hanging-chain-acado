@@ -27,9 +27,9 @@ NRUNS         = 5;              % run closed-loop simulation NRUNS times and sto
 
 ACADOSOLVER   = 'qpOASES_N2';   % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC'
 
-WARMSTART     = 1;              % applicable for qpOASES/qpDUNES
+WARMSTART     = 0;              % applicable for qpOASES/qpDUNES
 
-VISUAL        = 1;              % set to 1 to visualize chain of masses (only for the first out of the NRUNS simulations)
+VISUAL        = 0;              % set to 1 to visualize chain of masses (only for the first out of the NRUNS simulations)
 
 WALL          = -0.1;           % wall position (re-export if changed)
 
@@ -53,6 +53,35 @@ SOL_TOL = 1e-6;                 % maximum accepted 2-norm of the deviation of th
                                 % (only used if CHECK_AGAINST_REF_SOL = 1).
 
 SECONDARY_SOLVER = 'dfgm';   % empty, 'fiordos', 'dfgm' or 'osqp'
+
+
+% dimensions
+M  = NMASS - 2;     % number of intermediate masses
+NX = (2*M + 1)*3;   % differential states
+NU = 3;             % control inputs
+
+% MPC weights (may be hard-coded for some solvers)
+W  = blkdiag(25*eye(3), 25*eye(3*M), 1*eye(3*M), 0.01*eye(NU));
+WN = blkdiag(25*eye(3), 25*eye(3*M), 1*eye(3*M));
+
+if ~isempty(SECONDARY_SOLVER)
+   
+    switch SECONDARY_SOLVER
+        
+        case 'fiordos'
+            
+            sec_opts.approach  = 'dual'; % 'dual' or 'primal-dual'
+            sec_opts.tol       = 1e-2;
+            sec_opts.maxit     = 100000;
+            sec_opts.export    = 1;
+            sec_opts.compile   = 1;
+            sec_opts.infval    = 1e8;
+            sec_opts.warmstart = 1;
+            
+    end
+    
+end
+
 
 %% Load simulation options and overwrite local ones
 
@@ -85,10 +114,6 @@ elseif contains(ACADOSOLVER,'HPMPC')
 else
     QPCONDENSINGSTEPS = [];
 end
-
-M  = NMASS - 2;     % number of intermediate masses
-NX = (2*M + 1)*3;   % differential states
-NU = 3;             % control inputs
 
 DifferentialState xEnd(3,1);                           % 3-dimensional position of end point (M+1)
 eval(['DifferentialState x(',num2str(M*3),',1);'])     % 3-dimensional position of masses 1, 2, ..., M
@@ -325,7 +350,7 @@ end
 
 
 if strcmp(SECONDARY_SOLVER, 'fiordos')
-   fiordos_code_generate(N, NX, NU); 
+   fiordos_code_generate(N, NX, NU, W, WN, sec_opts); 
 end
 
 if strcmp(SECONDARY_SOLVER, 'dfgm')
@@ -386,8 +411,8 @@ for iRUNS = 1:NRUNS
     % weights
     % input.W  = blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)), 0.05*eye(3));
     % input.WN = blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)));
-    input.W  = blkdiag(25*eye(3), 25*eye(length(x)), 1*eye(length(v)), 0.01*eye(3));
-    input.WN = blkdiag(25*eye(3), 25*eye(length(x)), 1*eye(length(v)));
+    input.W  = W;
+    input.WN = WN;
 
     % clear mex memory for acado solver
     clear mex %#ok<CLMEX>
@@ -400,23 +425,21 @@ for iRUNS = 1:NRUNS
 
         if ~isempty(SECONDARY_SOLVER)
             
-            input_secondary = input;
-            input_secondary.acado_sol = output;
-            input_secondary.WALL    = WALL;
-            input_secondary.LBU     = -ones(NU,1);
-            input_secondary.UBU     = ones(NU,1);
+            sec_input = input;
+            sec_input.acado_sol = output;
+            sec_input.WALL    = WALL;
+            sec_input.LBU     = -ones(NU,1);
+            sec_input.UBU     = ones(NU,1);
             
             switch SECONDARY_SOLVER
                 
                 case 'fiordos'
-                    
-                    input_secondary.warmstart = WARMSTART;
-                    output_secondary = fiordos_MPCstep(input_secondary, time(end));
+                    sec_output = fiordos_MPCstep(sec_input, sec_opts, time(end));
                     
                 case 'dfgm'
                   
-                    input_secondary.warmstart = WARMSTART;
-                    output_secondary = dfgm_MPCstep(input_secondary, time(end));
+                    sec_input.warmstart = WARMSTART;
+                    sec_output = dfgm_MPCstep(sec_input, time(end));
                   
                 case 'osqp'
                     % TODO
@@ -469,13 +492,13 @@ for iRUNS = 1:NRUNS
         end
 
         if ~isempty(SECONDARY_SOLVER)
-            secondary_solve_qp_tmp_times(end+1) = output_secondary.info.QP_time;
-            secondary_solve_qp_iters(end+1)     = output_secondary.info.nIterations;
-            secondary_solve_qp_error(end+1)     = norm([output_secondary.x(:); output_secondary.u(:)] - [output.x(:); output.u(:)], inf);
+            secondary_solve_qp_tmp_times(end+1) = sec_output.info.QP_time;
+            secondary_solve_qp_iters(end+1)     = sec_output.info.nIterations;
+            secondary_solve_qp_error(end+1)     = norm([sec_output.x(:); sec_output.u(:)] - [output.x(:); output.u(:)], inf);
 
             fprintf('ACADO:\t\t %d it\t %f ms\n', niter, 1000*(ACADOtLog(end) - ACADOtSimLog(end)));
-            fprintf('%s:\t\t %d it\t %f ms\n', SECONDARY_SOLVER, output_secondary.info.nIterations, 1000*output_secondary.info.QP_time);
-            fprintf('solution gap:\t %5.e\n', norm([output_secondary.x(:); output_secondary.u(:)] - [output.x(:); output.u(:)], inf));
+            fprintf('%s:\t\t %d it\t %f ms\n', SECONDARY_SOLVER, sec_output.info.nIterations, 1000*sec_output.info.QP_time);
+            fprintf('solution gap:\t %5.e\n', norm([sec_output.x(:); sec_output.u(:)] - [output.x(:); output.u(:)], inf));
         end
 
         % Save the MPC step
@@ -591,9 +614,10 @@ if ~isempty(SECONDARY_SOLVER)
        plot(minACADOtLog-minACADOtSimLog)
        hold on
        plot(secondary_solve_qp_min_times')
-       title('CPU times for acado and fiordos')
-       legend('acado','fiordos')
+       title('CPU times')
+       legend('acado', SECONDARY_SOLVER)
        [(minACADOtLog-minACADOtSimLog) secondary_solve_qp_min_times' logged_data.secondary_error_sol']
+       logged_data.secondary_iter'
        keyboard
    end
 end

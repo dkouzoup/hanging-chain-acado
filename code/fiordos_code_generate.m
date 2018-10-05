@@ -1,24 +1,15 @@
-function fiordos_code_generate(N, NX, NU)
+function fiordos_code_generate(N, NX, NU, W, WN, opts)
 
 %CODE_GENERATE_FIORDOS Code generate fiordos solver with time-varying
-% dynamics and bounds (due to relative QP)
-
-
-% % % % % % % % OPTIONS % % % % % % % % % % % % % % % % % % % % % % % % % %
-
-% APPROACH: 'dual' or 'primal-dual'
-APPROACH = 'dual';
-tol      = 1e-3;
-maxit    = 100;
-EXPORT   = 1;
-COMPILE  = 1;
-
-% % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % % %
+%                      dynamics and bounds (due to relative QP)
 
 % remove any previously generated controller
-if EXPORT
+if opts.export
     
     if isdir('fiordos_controller')
+        if strfind(path, 'fiordos_controller') %#ok<STRIFCND>
+            rmpath([pwd filesep 'fiordos_controller'])
+        end
         rmdir('fiordos_controller', 's')
     end
     
@@ -26,11 +17,9 @@ if EXPORT
     
 end
 
-M = (NX/3 - 1)/2;
-
 %% SET UP PROBLEM
 
-% TODO: CAN WE DO IT WITHOUT INFS?
+% TODO: can we do it without infs?
 ZZ = SimpleSet(2*N);
 
 % input bounds
@@ -39,21 +28,25 @@ ZZ.addSet(1:N, EssBox(NU, 'l', 'param', 'u', 'param'));
 % state bounds (x0 in equality constraints)
 ZZ.addSet(N+(1:N),EssBox(NX, 'l', 'param','u', 'param'));
 
-op = OptProb('H', 'param.diag', 'g', 'param', 'X', ZZ, 'Ae', 'param', 'be', 'param', 'me', N*NX);
+Q  =  W(1:NX,1:NX);
+R  =  W(NX+1:NX+NU,NX+1:NX+NU);
+QN =  WN;
+H  = blkdiag(kron(eye(N), R),  kron(eye(N-1), Q), QN);
+
+op = OptProb('H', H, 'g', 'param', 'X', ZZ, 'Ae', 'param', 'be', 'param', 'me', N*NX);
 
 %% CODE GENERATE
 
 cd('fiordos_controller')
 
-if EXPORT
+if opts.export
     
-    % TODO: CLIPPING NOT POSSIBLE??
-    if strcmp(APPROACH, 'primal-dual')
-        s = Solver(op, 'approach', APPROACH, 'algo', 'fgm');
-        s.setSettings('approach', 'stopg', true, 'stopgEpsPrimal', tol, 'stopgEpsDual', tol, 'apprMaxit', maxit);
+    if strcmp(opts.approach, 'primal-dual')
+        s = Solver(op, 'approach', opts.approach, 'algo', 'fgm');
+        s.setSettings('approach', 'stopg', true, 'stopgEpsPrimal', opts.tol, 'stopgEpsDual', opts.tol, 'apprMaxit', opts.maxit);
     else
-        s = Solver(op, 'approach', APPROACH, 'algoOuter', 'fgm'); % 'algoInner', 'fgm',
-        s.setSettings('algoOuter', 'stopg', true, 'stopgEps', tol, 'maxit', maxit);
+        s = Solver(op, 'approach', opts.approach, 'algoOuter', 'fgm'); % 'algoInner', 'fgm',
+        s.setSettings('algoOuter', 'stopg', true, 'stopgEps', opts.tol, 'maxit', opts.maxit);
     end
     
     s.generateCode('prefix','fiordos_mpc_', 'forceOverwrite', true);
@@ -175,7 +168,7 @@ if EXPORT
     
 end
 
-if COMPILE
+if opts.compile
     fiordos_mpc_mex_make;
 end
 
