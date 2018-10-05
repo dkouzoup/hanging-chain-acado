@@ -1,12 +1,8 @@
-function [ output ] = dfgm_MPCstep(input, time_)
+function [ output ] = dfgm_MPCstep(input, opts, time_)
 
 % DFGM_MPCSTEP Solve relative QP with the generalized dual fast gradient
 %              method used in the simulations of Kouzoupis2015 (First Order
 %              Methods in Embedded Nonlinear Model Predictive Control)
-
-WARMSTART = 0;
-ITER      = 10000;
-TOL       = 1e-3;
 
 persistent LAMBDA;
 
@@ -18,7 +14,11 @@ NU = size(qp.B{1},2);
 if time_ == 0
     LAMBDA = zeros((N+1)*NX,1);
 else
-    if WARMSTART == 2
+    if opts.warmstart == 0
+        LAMBDA = zeros((N+1)*NX,1);
+    elseif opts.warmstart == 1 
+        % keep old LAMBDA
+    elseif opts.warmstart == 2
         % shift
         LAMBDA = [LAMBDA(NX+1:end); LAMBDA(end-NX+1:end)];
         LAMBDA(1:NX) = -LAMBDA(1:NX); % why?
@@ -66,12 +66,12 @@ ub = [ub; qp.ubx{N+1};];
 
 %% SET UP OPTIONS
 
-OPT.maximumIterations       = ITER;
-OPT.tolerance               = TOL;
+OPT.maximumIterations       = opts.maxit;
+OPT.tolerance               = opts.tol;
 OPT.calculateAllMultipliers = 0; % or 1 to calculate KKT's
 OPT.useExternalLibraries    = 1; % CONTROLLED AT COMPILE TIME! LEAVE TO 1, THERE IS A BUG FOR 0!
 OPT.terminationCondition    = 1; % CONTROLLED AT COMPILE TIME!
-OPT.warmStart               = double(WARMSTART > 0);
+OPT.warmStart               = double(opts.warmstart > 0);
 
 %% SOLVE RELATIVE QP
 

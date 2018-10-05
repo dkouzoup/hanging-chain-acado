@@ -76,8 +76,14 @@ if ~isempty(SECONDARY_SOLVER)
             sec_opts.export    = 1;
             sec_opts.compile   = 1;
             sec_opts.infval    = 1e8;
-            sec_opts.warmstart = 1;
+            sec_opts.warmstart = 1; % 0: no warmstart, 1: same solution
             
+        case 'dfgm'
+            
+            sec_opts.warmstart = 2; % 0: no warmstart, 1: same solution, 2: shifted solution
+            sec_opts.maxit     = 100000;
+            sec_opts.tol       = 1e-2;
+
     end
     
 end
@@ -438,8 +444,7 @@ for iRUNS = 1:NRUNS
                     
                 case 'dfgm'
                   
-                    sec_input.warmstart = WARMSTART;
-                    sec_output = dfgm_MPCstep(sec_input, time(end));
+                    sec_output = dfgm_MPCstep(sec_input, sec_opts, time(end));
                   
                 case 'osqp'
                     % TODO
