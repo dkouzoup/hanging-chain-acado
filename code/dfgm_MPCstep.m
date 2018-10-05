@@ -4,10 +4,26 @@ function [ output ] = dfgm_MPCstep(input, time_)
 %              method used in the simulations of Kouzoupis2015 (First Order
 %              Methods in Embedded Nonlinear Model Predictive Control)
 
+WARMSTART = 0;
+ITER      = 10000;
+TOL       = 1e-3;
+
+persistent LAMBDA;
+
 qp = build_relative_qp(input);
 N  = length(qp.r);
 NX = size(qp.B{1},1);
 NU = size(qp.B{1},2);
+
+if time_ == 0
+    LAMBDA = zeros((N+1)*NX,1);
+else
+    if WARMSTART == 2
+        % shift
+        LAMBDA = [LAMBDA(NX+1:end); LAMBDA(end-NX+1:end)];
+        LAMBDA(1:NX) = -LAMBDA(1:NX); % why?
+    end
+end
 
 %% SET UP OBJECTIVE
 
@@ -50,16 +66,16 @@ ub = [ub; qp.ubx{N+1};];
 
 %% SET UP OPTIONS
 
-OPT.maximumIterations       = 10000;
-OPT.tolerance               = 1e-3;
-OPT.calculateAllMultipliers = 1; % or 1 to calculate KKT's
+OPT.maximumIterations       = ITER;
+OPT.tolerance               = TOL;
+OPT.calculateAllMultipliers = 0; % or 1 to calculate KKT's
 OPT.useExternalLibraries    = 1; % CONTROLLED AT COMPILE TIME! LEAVE TO 1, THERE IS A BUG FOR 0!
 OPT.terminationCondition    = 1; % CONTROLLED AT COMPILE TIME!
-OPT.warmStart               = 0; % TODO
+OPT.warmStart               = double(WARMSTART > 0);
 
 %% SOLVE RELATIVE QP
 
-[sol, ~, timeElapsed, it, LAMBDA, MU] = mexedDGM(H, f, Am, Bm, beq, ub, lb, OPT);
+[sol, ~, timeElapsed, it, LAMBDA, ~] = mexedDGM(H, f, Am, Bm, beq, ub, lb, OPT, LAMBDA);
 
 sol_xu = reshape([sol; nan(NU,1)], NX+NU, N+1);
 
