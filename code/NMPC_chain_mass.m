@@ -15,17 +15,17 @@ addpath([pwd filesep 'utils'])
 
 %% SIMULATION OPTIONS
 
-SIM_EXPORT    = 1;              % export code for ACADO simulator
+SIM_EXPORT    = 0;              % export code for ACADO simulator
 
-SIM_COMPILE   = 1;              % compile exported code for ACADO simulator
+SIM_COMPILE   = 0;              % compile exported code for ACADO simulator
 
-MPC_EXPORT    = 1;              % export code for ACADO solver
+MPC_EXPORT    = 0;              % export code for ACADO solver
 
-MPC_COMPILE   = 1;              % compile exported code for ACADO solver
+MPC_COMPILE   = 0;              % compile exported code for ACADO solver
 
 NRUNS         = 5;              % run closed-loop simulation NRUNS times and store minimum timings (to minimize OS interference)
 
-ACADOSOLVER   = 'qpOASES_e_N2'; % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC'
+ACADOSOLVER   = 'qpOASES_N2';   % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC'
 
 WARMSTART     = 1;              % applicable for qpOASES/qpDUNES
 
@@ -143,7 +143,8 @@ if SIM_COMPILE
     sim_path = '../';
     make_acado_integrator([sim_path sim_name])
     if ~isempty(SECONDARY_SOLVER)
-        make_acado_integrator([sim_path sim_name '_fiordos'])
+        % NOTE: using the same integrator for simulation gives somehow wrong results
+        make_acado_integrator([sim_path sim_name '_tmp'])
     end
     cd ..
 end
@@ -468,15 +469,13 @@ for iRUNS = 1:NRUNS
         end
 
         if ~isempty(SECONDARY_SOLVER)
-
             secondary_solve_qp_tmp_times(end+1) = output_secondary.info.QP_time;
             secondary_solve_qp_iters(end+1)     = output_secondary.info.nIterations;
             secondary_solve_qp_error(end+1)     = norm([output_secondary.x(:); output_secondary.u(:)] - [output.x(:); output.u(:)], inf);
 
-            fprintf('ACADO:\t %d\t %f\n', niter, 1000*(ACADOtLog(end) - ACADOtSimLog(end)));
-            fprintf('FiOrdOs:\t %d\t %f\n', output_secondary.info.nIterations, 1000*output_secondary.info.QP_time);
-            fprintf('solution gap:\t %5.e\n', norm(output_secondary.x(:)-output.x(:),inf));
-%             keyboard
+            fprintf('ACADO:\t\t %d it\t %f ms\n', niter, 1000*(ACADOtLog(end) - ACADOtSimLog(end)));
+            fprintf('%s:\t\t %d it\t %f ms\n', SECONDARY_SOLVER, output_secondary.info.nIterations, 1000*output_secondary.info.QP_time);
+            fprintf('solution gap:\t %5.e\n', norm([output_secondary.x(:); output_secondary.u(:)] - [output.x(:); output.u(:)], inf));
         end
 
         % Save the MPC step
@@ -578,12 +577,12 @@ if DETAILED_TIME
 end
 
 if ~isempty(SECONDARY_SOLVER)
-   logged_data.fiordos_qptime     = secondary_solve_qp_min_times';
-   logged_data.fiordos_iter       = secondary_solve_qp_iters;
-   logged_data.fiordos_error_sol  = secondary_solve_qp_error;
+   logged_data.secondary_qptime     = secondary_solve_qp_min_times';
+   logged_data.secondary_iter       = secondary_solve_qp_iters;
+   logged_data.secondary_error_sol  = secondary_solve_qp_error;
 
    if 1
-       disp(['MAX ERROR IN SOLUTION:          ' num2str(max(abs(logged_data.fiordos_error_sol)))]);
+       disp(['MAX ERROR IN SOLUTION:          ' num2str(max(abs(logged_data.secondary_error_sol)))]);
        close all
 %        plot(minACADOtLog-minACADOtSimLog);
 %        hold on
@@ -594,7 +593,7 @@ if ~isempty(SECONDARY_SOLVER)
        plot(secondary_solve_qp_min_times')
        title('CPU times for acado and fiordos')
        legend('acado','fiordos')
-       [(minACADOtLog-minACADOtSimLog) secondary_solve_qp_min_times' logged_data.fiordos_error_sol']
+       [(minACADOtLog-minACADOtSimLog) secondary_solve_qp_min_times' logged_data.secondary_error_sol']
        keyboard
    end
 end
