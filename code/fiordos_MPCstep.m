@@ -14,28 +14,12 @@ NU = size(qp.B{1},2);
 
 %% SET UP DYNAMICS
 
-Aeu  = [];
-Aex1 = [];
-Aex2 = [];
-for ii = 1:N
-    Aeu  = blkdiag(Aeu, -qp.B{ii});
-    Aex1 = blkdiag(Aex1, eye(NX));
-    if ii < N
-        Aex2 = blkdiag(Aex2, -qp.A{ii+1});
-    end
-end
-
-Aex = Aex1 + [zeros(NX, size(Aex1,2)); Aex2 zeros(size(Aex2,1) ,NX)];
-
-be = vertcat(qp.c{:});
-
-% x0 embedding
-be(1:NX) = be(1:NX) + qp.A{1}*qp.lbx{1};
-
 if max(max(abs(qp.lbx{1}-qp.ubx{1}))) > 1e-10
     warning('bounds on first stage do not include x0 constraint')
     keyboard
 end
+
+[Ae, be] = build_equality_constraints(qp.A, qp.B, qp.c, qp.lbx{1});
 
 %% SET UP OBJECTIVE
 
@@ -59,7 +43,7 @@ qp.ubx{N+1}(isinf(qp.ubx{N+1})) = +opts.infval;
 mparams = struct();
 msetgs  = struct();
 
-mparams.Ae = [Aeu Aex];
+mparams.Ae = Ae;
 mparams.be = be;
 mparams.g  = g;
 
@@ -138,5 +122,10 @@ end
 
 output.info.nIterations = mres.iter;
 output.info.status = mres.exitflag;
+
+if output.info.status ~= 2
+    warning('Fiordos did not solve the problem!')
+    keyboard
+end
 
 end

@@ -52,7 +52,7 @@ CHECK_AGAINST_REF_SOL = 0;      % if 1, exports and compiles reference solver (q
 SOL_TOL = 1e-6;                 % maximum accepted 2-norm of the deviation of the solution from the reference solution
                                 % (only used if CHECK_AGAINST_REF_SOL = 1).
 
-SECONDARY_SOLVER = 'dfgm';   % empty, 'fiordos', 'dfgm' or 'osqp'
+SECONDARY_SOLVER = 'osqp';   % empty, 'fiordos', 'dfgm' or 'osqp'
 
 
 % dimensions
@@ -83,7 +83,12 @@ if ~isempty(SECONDARY_SOLVER)
             sec_opts.warmstart = 2; % 0: no warmstart, 1: same solution, 2: shifted solution
             sec_opts.maxit     = 100000;
             sec_opts.tol       = 1e-2;
+            
+        case 'osqp'
 
+            sec_opts.warmstart = 1;
+            sec_opts.maxit     = 1000;
+            sec_opts.check_ter = 5;
     end
     
 end
@@ -363,6 +368,9 @@ if strcmp(SECONDARY_SOLVER, 'dfgm')
    dfgm_compile(N, NX, NU); 
 end
 
+if strcmp(SECONDARY_SOLVER, 'osqp')
+   osqp_prob = osqp_setup(N, NX, NU, W, WN, sec_opts); 
+end
 
 %% Closed loop simulations
 
@@ -447,7 +455,8 @@ for iRUNS = 1:NRUNS
                     sec_output = dfgm_MPCstep(sec_input, sec_opts, time(end));
                   
                 case 'osqp'
-                    % TODO
+                    sec_input.prob = osqp_prob;
+                    sec_output = osqp_MPCstep(sec_input, sec_opts, time(end));
             end
             
         end
