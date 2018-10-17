@@ -70,12 +70,33 @@ OPT.maximumIterations       = opts.maxit;
 OPT.tolerance               = opts.tol;
 OPT.calculateAllMultipliers = 0; % or 1 to calculate KKT's
 OPT.useExternalLibraries    = 1; % CONTROLLED AT COMPILE TIME! LEAVE TO 1, THERE IS A BUG FOR 0!
-OPT.terminationCondition    = 1; % CONTROLLED AT COMPILE TIME!
 OPT.warmStart               = double(opts.warmstart > 0);
+
+if opts.criterion == 1
+    OPT.terminationCondition = 1; % CONTROLLED AT COMPILE TIME!   
+elseif opts.criterion == 2
+    OPT.terminationCondition = 3;
+end
+
+%% 
+
+if opts.criterion == 2
+    
+    acado_x   = input.acado_sol.x';
+    acado_u   = input.acado_sol.u';
+
+    acado_delta_x = acado_x - input.x';
+    acado_delta_u = acado_u - input.u';
+    acado_delta_u = [acado_delta_u nan(NU, 1)];
+    acado_delta_sol = [acado_delta_x; acado_delta_u];
+    acado_delta_sol = acado_delta_sol(1:end-NU)';
+else
+    acado_delta_sol = [];
+end
 
 %% SOLVE RELATIVE QP
 
-[sol, ~, timeElapsed, it, LAMBDA, ~] = mexedDGM(H, f, Am, Bm, beq, ub, lb, OPT, LAMBDA);
+[sol, ~, timeElapsed, it, LAMBDA, ~] = mexedDGM(H, f, Am, Bm, beq, ub, lb, OPT, LAMBDA, acado_delta_sol);
 
 sol_xu = reshape([sol; nan(NU,1)], NX+NU, N+1);
 

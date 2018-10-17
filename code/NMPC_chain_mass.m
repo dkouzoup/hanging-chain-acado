@@ -4,10 +4,13 @@ function logged_data = NMPC_chain_mass(sim_opts)
 
 if ~exist('sim_opts','var')
     clear all
+    BATCH = false;
+else
+    BATCH = true;
 end
 
 clear global % for ACADO workspace
-clearvars -except sim_opts; clc; close all; % sim_opts contain options to overwrite current script
+clearvars -except sim_opts BATCH; clc; close all; % sim_opts contain options to overwrite current script
 close all
 clc
 
@@ -15,13 +18,13 @@ addpath([pwd filesep 'utils'])
 
 %% SIMULATION OPTIONS
 
-SIM_EXPORT    = 0;              % export code for ACADO simulator
+SIM_EXPORT    = 1;              % export code for ACADO simulator
 
-SIM_COMPILE   = 0;              % compile exported code for ACADO simulator
+SIM_COMPILE   = 1;              % compile exported code for ACADO simulator
 
-MPC_EXPORT    = 0;              % export code for ACADO solver
+MPC_EXPORT    = 1;              % export code for ACADO solver
 
-MPC_COMPILE   = 0;              % compile exported code for ACADO solver
+MPC_COMPILE   = 1;              % compile exported code for ACADO solver
 
 NRUNS         = 5;              % run closed-loop simulation NRUNS times and store minimum timings (to minimize OS interference)
 
@@ -37,7 +40,7 @@ Ts            = 0.2;            % sampling time [s]
 
 Tf            = 5;              % final simulation time [s]
 
-N             = 10;             % prediction horizon
+N             = 50;             % prediction horizon
 
 NMASS         = 3;              % number of masses in chain (data available from 3 to 6 masses)
 
@@ -52,8 +55,23 @@ CHECK_AGAINST_REF_SOL = 0;      % if 1, exports and compiles reference solver (q
 SOL_TOL = 1e-6;                 % maximum accepted 2-norm of the deviation of the solution from the reference solution
                                 % (only used if CHECK_AGAINST_REF_SOL = 1).
 
-SECONDARY_SOLVER = 'osqp';   % empty, 'fiordos', 'dfgm' or 'osqp'
+SECONDARY_SOLVER = 'fiordos';   % empty, 'fiordos', 'dfgm' or 'osqp'
 
+
+%% Load simulation options and overwrite local ones
+
+if exist('sim_opts','var')
+    names  = fieldnames(sim_opts);
+    for ii = 1:length(names)
+        eval([names{ii} ' = sim_opts.' names{ii} ';'])
+    end
+end
+
+if DETAILED_TIME == 1 && ~strcmp(ACADOSOLVER, 'FORCES')
+    error('detailed timings only implemented for FORCES solver');
+end
+
+%% Initialization
 
 % dimensions
 M  = NMASS - 2;     % number of intermediate masses
@@ -83,31 +101,19 @@ if ~isempty(SECONDARY_SOLVER)
             sec_opts.warmstart = 2; % 0: no warmstart, 1: same solution, 2: shifted solution
             sec_opts.maxit     = 100000;
             sec_opts.tol       = 1e-2;
+            sec_opts.criterion = 1; % 1: solver's own criterion, 2: compare with acado solution (not working yet properly)
             
         case 'osqp'
 
             sec_opts.warmstart = 1;
             sec_opts.maxit     = 1000;
-            sec_opts.check_ter = 5;
+            sec_opts.check_ter = 1;
+            sec_opts.abstol    = 1e-3; % 1e-3 default for both
+            sec_opts.reltol    = 1e-3;
+            
     end
     
 end
-
-
-%% Load simulation options and overwrite local ones
-
-if exist('sim_opts','var')
-    names  = fieldnames(sim_opts);
-    for ii = 1:length(names)
-        eval([names{ii} ' = sim_opts.' names{ii} ';'])
-    end
-end
-
-if DETAILED_TIME == 1 && ~strcmp(ACADOSOLVER, 'FORCES')
-    error('detailed timings only implemented for FORCES solver');
-end
-
-%% Initialization
 
 % extract block size from solver name
 if contains(ACADOSOLVER,'qpDUNES')
@@ -365,7 +371,7 @@ if strcmp(SECONDARY_SOLVER, 'fiordos')
 end
 
 if strcmp(SECONDARY_SOLVER, 'dfgm')
-   dfgm_compile(N, NX, NU); 
+   dfgm_compile(N, NX, NU, sec_opts); 
 end
 
 if strcmp(SECONDARY_SOLVER, 'osqp')
@@ -617,8 +623,9 @@ if ~isempty(SECONDARY_SOLVER)
    logged_data.secondary_qptime     = secondary_solve_qp_min_times';
    logged_data.secondary_iter       = secondary_solve_qp_iters;
    logged_data.secondary_error_sol  = secondary_solve_qp_error;
-
-   if 1
+   logged_data.secondary_solver     = SECONDARY_SOLVER;
+   
+   if ~BATCH
        disp(['MAX ERROR IN SOLUTION:          ' num2str(max(abs(logged_data.secondary_error_sol)))]);
        close all
 %        plot(minACADOtLog-minACADOtSimLog);

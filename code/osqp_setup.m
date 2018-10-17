@@ -23,7 +23,7 @@ u  = +1*ones(size(A,1),1);
 prob = osqp;
 prob.setup(H, g, A, l, u, 'warm_start', logical(opts.warmstart), ...
     'check_termination', opts.check_ter, 'max_iter', opts.maxit, ...
-    'verbose', 0);
+    'verbose', 0, 'eps_abs', opts.abstol, 'eps_rel', opts.reltol);
 
 end
 
