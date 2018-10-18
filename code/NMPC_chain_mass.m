@@ -18,13 +18,13 @@ addpath([pwd filesep 'utils'])
 
 %% SIMULATION OPTIONS
 
-SIM_EXPORT    = 1;              % export code for ACADO simulator
+SIM_EXPORT    = 0;              % export code for ACADO simulator
 
-SIM_COMPILE   = 1;              % compile exported code for ACADO simulator
+SIM_COMPILE   = 0;              % compile exported code for ACADO simulator
 
-MPC_EXPORT    = 1;              % export code for ACADO solver
+MPC_EXPORT    = 0;              % export code for ACADO solver
 
-MPC_COMPILE   = 1;              % compile exported code for ACADO solver
+MPC_COMPILE   = 0;              % compile exported code for ACADO solver
 
 NRUNS         = 5;              % run closed-loop simulation NRUNS times and store minimum timings (to minimize OS interference)
 
@@ -55,7 +55,7 @@ CHECK_AGAINST_REF_SOL = 0;      % if 1, exports and compiles reference solver (q
 SOL_TOL = 1e-6;                 % maximum accepted 2-norm of the deviation of the solution from the reference solution
                                 % (only used if CHECK_AGAINST_REF_SOL = 1).
 
-SECONDARY_SOLVER = 'fiordos';   % empty, 'fiordos', 'dfgm' or 'osqp'
+SECONDARY_SOLVER = 'osqp';   % empty, 'fiordos', 'dfgm' or 'osqp'
 
 
 %% Load simulation options and overwrite local ones
@@ -464,7 +464,6 @@ for iRUNS = 1:NRUNS
                     sec_input.prob = osqp_prob;
                     sec_output = osqp_MPCstep(sec_input, sec_opts, time(end));
             end
-            
         end
 
         if CHECK_AGAINST_REF_SOL
@@ -519,6 +518,12 @@ for iRUNS = 1:NRUNS
             fprintf('ACADO:\t\t %d it\t %f ms\n', niter, 1000*(ACADOtLog(end) - ACADOtSimLog(end)));
             fprintf('%s:\t\t %d it\t %f ms\n', SECONDARY_SOLVER, sec_output.info.nIterations, 1000*sec_output.info.QP_time);
             fprintf('solution gap:\t %5.e\n', norm([sec_output.x(:); sec_output.u(:)] - [output.x(:); output.u(:)], inf));
+        end
+
+        % USE SOLUTION OF SECONDARY SOLVER INSTEAD OF ACADO
+        if ~isempty(SECONDARY_SOLVER)
+            output.x = sec_output.x;
+            output.u = sec_output.u;
         end
 
         % Save the MPC step
@@ -612,6 +617,7 @@ logged_data.simtime = minACADOtSimLog;
 logged_data.iters   = ACADOnIter;
 logged_data.outputs = ACADOoutputs;
 logged_data.Nblock  = QPCONDENSINGSTEPS;
+logged_data.solver  = ACADOSOLVER;
 logged_data.sol_accuracy = sol_accuracy;
 logged_data.val_accuracy = val_accuracy;
 

@@ -48,7 +48,8 @@ kk     = 0; % will contain number of different solvers in log cell array
 
 for ii = 1:nexp
     
-    if ~strcmp(solver,logs{ii}.secondary_solver)
+    if isfield(logs{ii}, 'secondary_solver') && ~strcmp(solver, logs{ii}.secondary_solver)
+        
         kk = kk+1;
         solver = logs{ii}.secondary_solver;
         data(kk).x = [];
@@ -57,30 +58,44 @@ for ii = 1:nexp
         data(kk).error = [];
         data(kk).marker = set_up_marker(solver);
         data(kk).solver = set_up_solver_name(solver);
+        SECONDARY = true;
+        
+    elseif ~isfield(logs{ii}, 'secondary_solver') && ~strcmp(solver, logs{ii}.solver)
+        
+        kk = kk+1;
+        solver = logs{ii}.solver;
+        data(kk).x = [];
+        data(kk).y = [];
+        data(kk).marker = set_up_marker(solver);
+        data(kk).solver = set_up_solver_name(solver);
+        SECONDARY = false;
     end
     
-    try
     data(kk).x = [data(kk).x logs{ii}.N];
-    catch
-        keyboard
+
+    if SECONDARY
+        y  = logs{ii}.secondary_qptime; y(isnan(y)) = [];
+        ya = logs{ii}.cputime - logs{ii}.simtime; ya(isnan(ya)) = [];
+        data(kk).ya = [data(kk).ya ya];
+        data(kk).error = [data(kk).error max(logs{ii}.secondary_error_sol)];
+    else
+        y  = logs{ii}.cputime - logs{ii}.simtime; y(isnan(y)) = [];
     end
-    y  = logs{ii}.secondary_qptime; y(isnan(y)) = [];
-    ya = logs{ii}.cputime - logs{ii}.simtime; ya(isnan(ya)) = [];
-    
-    data(kk).y = [data(kk).y y];
-    data(kk).ya = [data(kk).ya ya];
-    
-    data(kk).error = [data(kk).error max(logs{ii}.secondary_error_sol)];
+    data(kk).y  = [data(kk).y y];
 
 end
 
 for kk = 1:length(data)
     if strcmp(MODE, 'max')
         data(kk).yplot  = max(data(kk).y);
-        data(kk).ayplot = max(data(kk).ya);
+        if isfield(data, 'ya')
+            data(kk).ayplot = max(data(kk).ya);
+        end
     elseif strcmp(MODE, 'av')
-        data(kk).ayplot = sum(data(kk).ya)/size(data(kk).ya, 1);
-        data(kk).yplot  = sum(data(kk).y)/size(data(kk).y, 1);        
+        data(kk).yplot  = sum(data(kk).y)/size(data(kk).y, 1);
+        if isfield(data, 'ya')
+            data(kk).ayplot = sum(data(kk).ya)/size(data(kk).ya, 1);
+        end
     end
 end
 
@@ -104,16 +119,21 @@ figure(FHANDLE);
 if ~LOGSCALE
     
     for kk = 1:length(data)
+        if contains(data(kk).solver, 'HPMPC') || contains(data(kk).solver, 'qpOASES')
+            color_tmp = color_faded;
+            alpha_tmp = alpha_faded;
+            style_tmp = style_faded;
+        else
+            color_tmp = color;
+            alpha_tmp = alpha;
+            style_tmp = style;            
+        end
+        
         plot(data(kk).x, 1e3*data(kk).yplot, ...
-            'Marker', data(kk).marker, 'MarkerSize', 12, 'MarkerEdgeColor', [1-alpha 1-alpha 1-alpha], ...
-            'Color', color, 'Linewidth',1.5, 'LineStyle', style);
+            'Marker', data(kk).marker, 'MarkerSize', 12, 'MarkerEdgeColor', [1-alpha_tmp 1-alpha_tmp 1-alpha_tmp], ...
+            'Color', color_tmp, 'Linewidth',1.5, 'LineStyle', style_tmp);
         hold on
     end
-    plot(data(kk).x, 1e3*data(kk).ayplot, ...
-        'Marker', set_up_marker('qpOASES_N2'), 'MarkerSize', 12, 'MarkerEdgeColor', [1-alpha_faded 1-alpha_faded 1-alpha_faded], ...
-        'Color', color_faded, 'Linewidth',1.5, 'LineStyle', style_faded);
-    
-    grid on
     
     set_up_plot(data, false);
     xlim(xlims)
@@ -122,16 +142,21 @@ if ~LOGSCALE
 else
         
     for kk = 1:length(data)
+        if contains(data(kk).solver, 'HPMPC') || contains(data(kk).solver, 'qpOASES')
+            color_tmp = color_faded;
+            alpha_tmp = alpha_faded;
+            style_tmp = style_faded;
+        else
+            color_tmp = color;
+            alpha_tmp = alpha;
+            style_tmp = style;
+        end
+        
         loglog(data(kk).x, 1e3*data(kk).yplot, ...
-            'Marker', data(kk).marker, 'MarkerSize', 12, 'MarkerEdgeColor', [1-alpha 1-alpha 1-alpha], ...
-            'Color', color, 'linewidth',1.5, 'LineStyle', style);
+            'Marker', data(kk).marker, 'MarkerSize', 12, 'MarkerEdgeColor', [1-alpha_tmp 1-alpha_tmp 1-alpha_tmp], ...
+            'Color', color_tmp, 'linewidth',1.5, 'LineStyle', style_tmp);
         hold on
     end
-    loglog(data(kk).x, 1e3*data(kk).ayplot, ...
-        'Marker', set_up_marker('qpOASES_N2'), 'MarkerSize', 12, 'MarkerEdgeColor', [1-alpha_faded 1-alpha_faded 1-alpha_faded], ...
-        'Color', color_faded, 'Linewidth',1.5, 'LineStyle', style_faded);
-    
-    grid on
     
     set_up_plot(data, true);
     xlim(xlims)
@@ -143,7 +168,11 @@ FHANDLE.Position = [100 300 600 500];
 
 maxerror = nan(length(data),1);
 for kk = 1:length(data)
-    maxerror(kk) = max(data(kk).error);
+    if isfield(data(kk), 'error') && ~isempty(data(kk).error)
+        maxerror(kk) = max(data(kk).error);
+    else
+        maxerror(kk) = nan;
+    end
 end
 
 end
@@ -160,7 +189,7 @@ if ~LOGPLOT
     hLegend = findobj(gcf, 'Type', 'Legend');
     
     if isempty(hLegend)
-        l = legend({data.solver 'qpOASES CN$^2$'});
+        l = legend(data.solver);
         l.Interpreter = 'latex';
         l.Location = 'northwest';
     end
@@ -175,24 +204,30 @@ end
 
 function marker = set_up_marker(solver)
 
-if strcmp(solver, 'qpOASES_N2')
+if contains(solver, 'qpOASES')
     
     marker = '^';
-    
-elseif strcmp(solver, 'osqp')
-    
-    marker = 's';
-    
-elseif strcmp(solver, 'fiordos')
+
+elseif contains(solver, 'HPMPC')
     
     marker = '*';
     
+elseif strcmp(solver, 'osqp')
+    
+    marker = 'o';
+    
 elseif strcmp(solver, 'dfgm')
     
-    marker = 'p';
+    marker = 'h';
+
+elseif strcmp(solver, 'fiordos')
     
-else 
-    marker = 'o';
+    marker = 'x';
+
+else
+    
+    marker = '>';
+
 end
 
 end
@@ -207,6 +242,12 @@ if strcmp(solver_name_latex, 'dfgm')
 end
 if strcmp(solver_name_latex, 'osqp')
     solver_name_latex = 'OSQP';
+end
+if contains(solver_name_latex, 'HPMPC')
+    solver_name_latex = 'HPMPC';
+end
+if contains(solver_name_latex, 'qpOASES')
+    solver_name_latex = 'qpOASES CN$^2$';
 end
 
 end
