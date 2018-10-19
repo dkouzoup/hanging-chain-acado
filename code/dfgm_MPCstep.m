@@ -16,7 +16,7 @@ if time_ == 0
 else
     if opts.warmstart == 0
         LAMBDA = zeros((N+1)*NX,1);
-    elseif opts.warmstart == 1 
+    elseif opts.warmstart == 1
         % keep old LAMBDA
     elseif opts.warmstart == 2
         % shift
@@ -27,7 +27,7 @@ end
 
 %% SET UP OBJECTIVE
 
-H = []; 
+H = [];
 f = [];
 for ii = 1:N
     H = blkdiag(H, qp.Q{ii}, qp.R{ii});
@@ -55,8 +55,8 @@ for ii = 1:N
     lb = [lb; qp.lbx{ii}; qp.lbu{ii}];
     ub = [ub; qp.ubx{ii}; qp.ubu{ii}];
 end
-lb = [lb; qp.lbx{N+1};];
-ub = [ub; qp.ubx{N+1};];
+lb = [lb; qp.lbx{N+1}];
+ub = [ub; qp.ubx{N+1}];
 
 % lb(1:NX) = -inf*ones(NX,1);
 % ub(1:NX) = +inf*ones(NX,1);
@@ -68,23 +68,22 @@ ub = [ub; qp.ubx{N+1};];
 
 OPT.maximumIterations       = opts.maxit;
 OPT.tolerance               = opts.tol;
-OPT.calculateAllMultipliers = 0; % or 1 to calculate KKT's
+OPT.calculateAllMultipliers = 1; % or 1 to calculate KKT's
 OPT.useExternalLibraries    = 1; % CONTROLLED AT COMPILE TIME! LEAVE TO 1, THERE IS A BUG FOR 0!
 OPT.warmStart               = double(opts.warmstart > 0);
 
 if opts.criterion == 1
-    OPT.terminationCondition = 1; % CONTROLLED AT COMPILE TIME!   
+    OPT.terminationCondition = 1; % CONTROLLED AT COMPILE TIME!
 elseif opts.criterion == 2
     OPT.terminationCondition = 3;
 end
 
-%% 
+%%
 
 if opts.criterion == 2
-    
     acado_x   = input.acado_sol.x';
     acado_u   = input.acado_sol.u';
-
+    
     acado_delta_x = acado_x - input.x';
     acado_delta_u = acado_u - input.u';
     acado_delta_u = [acado_delta_u nan(NU, 1)];
@@ -96,7 +95,7 @@ end
 
 %% SOLVE RELATIVE QP
 
-[sol, ~, timeElapsed, it, LAMBDA, ~] = mexedDGM(H, f, Am, Bm, beq, ub, lb, OPT, LAMBDA, acado_delta_sol);
+[sol, ~, timeElapsed, it, LAMBDA, MU] = mexedDGM(H, f, Am, Bm, beq, ub, lb, OPT, LAMBDA, acado_delta_sol);
 
 sol_xu = reshape([sol; nan(NU,1)], NX+NU, N+1);
 
@@ -111,9 +110,34 @@ dfgm_u = input.u' + dfgm_delta_u;
 output.x   = dfgm_x';
 output.u   = dfgm_u';
 
+% output.lam = LAMBDA;
+% output.mu  = MU(1:length(MU)/2) - MU(length(MU)/2+1:end);
+
 output.info.QP_time = timeElapsed;
 output.info.nIterations = it;
 output.info.status = nan;
 
+[output.info.primal_res, output.info.dual_res] = dfgm_kkt(N, NX, NU, H, f, lb, ub, beq, qp, sol, LAMBDA, MU);
+
 end
 
+function [primal_res, dual_res] = dfgm_kkt(N, NX, NU, H, f, lb, ub, beq, qp, sol, LAMBDA, MU)
+
+Aeq = zeros(N*NX+NX,N*(NX+NU)+NX);
+
+Aeq(1:NX,1:NX) = eye(NX);
+for k = 1:N
+    Aeq(NX+(k-1)*NX+1:NX+k*NX,(k-1)*(NX+NU)+1:k*(NX+NU)+NX) = [qp.A{k} qp.B{k} -eye(NX)];
+end
+Aeq(1:NX,1:NX) = eye(NX);
+
+
+MU_1 = MU(1:length(MU)/2);
+MU_2 = MU(length(MU)/2+1:end);
+
+primal_res_eq   = max(abs(Aeq*sol - beq));
+primal_res_ineq = max([lb - sol; sol - ub]);
+primal_res      = max(primal_res_eq, primal_res_ineq);
+dual_res        = max(abs(H*sol + f + Aeq'*LAMBDA + MU_1 - MU_2));
+
+end

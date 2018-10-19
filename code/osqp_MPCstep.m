@@ -56,6 +56,9 @@ p.update('q', g, 'l', l, 'u', u, 'Ax', Ax);
 %% SOLVE RELATIVE QP
 res = p.solve();
 
+% it = res.info.iter;
+% save(['osqp_workspace_' num2str(100*time_) '_run2.mat'], 'Ax', 'l', 'u', 'g', 'it');
+
 %% STORE RESULTS
 
 osqp_delta_x = [qp.lbx{1} reshape(res.x(N*NU+1:end), NX, N)];
@@ -67,9 +70,14 @@ osqp_u = input.u' + osqp_delta_u;
 output.x = osqp_x';
 output.u = osqp_u';
 
+% output.lam = res.y(1:size(Ae,1));
+% output.mu  = res.y(size(Ae,1)+1:end);
+
 output.info.QP_time = res.info.run_time; % TODO: this one?
 output.info.nIterations = res.info.iter;
 output.info.status = res.info.status;
+output.info.primal_res = res.info.pri_res; 
+output.info.dual_res = res.info.dua_res; 
 
 if ~strcmp(res.info.status, 'solved')
     warning('OSQP did not solve the problem!')

@@ -57,7 +57,6 @@ SOL_TOL = 1e-6;                 % maximum accepted 2-norm of the deviation of th
 
 SECONDARY_SOLVER = 'osqp';   % empty, 'fiordos', 'dfgm' or 'osqp'
 
-
 %% Load simulation options and overwrite local ones
 
 if exist('sim_opts','var')
@@ -374,20 +373,25 @@ if strcmp(SECONDARY_SOLVER, 'dfgm')
    dfgm_compile(N, NX, NU, sec_opts); 
 end
 
-if strcmp(SECONDARY_SOLVER, 'osqp')
-   osqp_prob = osqp_setup(N, NX, NU, W, WN, sec_opts); 
-end
-
 %% Closed loop simulations
 
 % minimum timings of solver over NRUNS
 minACADOtLog = [];
-if ~isempty(SECONDARY_SOLVER)
-    secondary_solve_qp_min_times = [];
-end
 
+if ~isempty(SECONDARY_SOLVER)
+    secondary_solve_qp_times = [];
+    secondary_solve_qp_iters = [];
+    secondary_solve_qp_error = [];
+    secondary_primal_feas    = [];
+    secondary_dual_feas      = [];
+end
+        
 for iRUNS = 1:NRUNS
-    
+
+    if strcmp(SECONDARY_SOLVER, 'osqp')
+        osqp_prob = osqp_setup(N, NX, NU, W, WN, sec_opts);
+    end
+
     X0   = fsolve_ref;
     Xref = repmat(fsolve_ref.',N+1,1);
     Uref = zeros(N,NU);
@@ -413,12 +417,6 @@ for iRUNS = 1:NRUNS
     ACADOnIter    = [];  % log iterations (if available)
     sol_accuracy  = [];  % log accuracy (deviation from reference solution) of the solution (if available)
     val_accuracy  = [];  % log accuracy (deviation from reference obj value) of the solution (if available)
-
-    if ~isempty(SECONDARY_SOLVER)
-        secondary_solve_qp_tmp_times = [];
-        secondary_solve_qp_iters     = [];
-        secondary_solve_qp_error     = [];
-    end
 
     if DETAILED_TIME
         ACADOtprepLog = [];  % log preparation times
@@ -465,11 +463,16 @@ for iRUNS = 1:NRUNS
                     sec_output = osqp_MPCstep(sec_input, sec_opts, time(end));
             end
         end
-
+        
         if CHECK_AGAINST_REF_SOL
             ref_output = acado_ref_MPCstep(input);
-            sol_err = max(norm(output.x - ref_output.x, Inf), norm(output.u - ref_output.u, Inf));
-            val_err = abs(output.info.objValue - ref_output.info.objValue)/max(1, ref_output.info.objValue);
+            if isempty(SECONDARY_SOLVER)
+                sol_err = max(norm(output.x - ref_output.x, Inf), norm(output.u - ref_output.u, Inf));
+                val_err = abs(output.info.objValue - ref_output.info.objValue)/max(1, ref_output.info.objValue);
+            else
+                sol_err = max(norm(sec_output.x - ref_output.x, Inf), norm(sec_output.u - ref_output.u, Inf));
+                val_err = nan;% abs(sec_output.info.objValue - ref_output.info.objValue)/max(1, ref_output.info.objValue);                
+            end
             if sol_err > SOL_TOL || val_err > SOL_TOL
 %                 keyboard
                 warning(['failed to meet accuracy of ', num2str(SOL_TOL), '( sol_err = ', ...
@@ -511,10 +514,18 @@ for iRUNS = 1:NRUNS
         end
 
         if ~isempty(SECONDARY_SOLVER)
-            secondary_solve_qp_tmp_times(end+1) = sec_output.info.QP_time;
-            secondary_solve_qp_iters(end+1)     = sec_output.info.nIterations;
-            secondary_solve_qp_error(end+1)     = norm([sec_output.x(:); sec_output.u(:)] - [output.x(:); output.u(:)], inf);
-
+            secondary_solve_qp_times(iter+1, iRUNS) = sec_output.info.QP_time;
+            secondary_solve_qp_iters(iter+1, iRUNS) = sec_output.info.nIterations;
+            secondary_solve_qp_error(iter+1, iRUNS) = norm([sec_output.x(:); sec_output.u(:)] - [output.x(:); output.u(:)], inf);
+            
+            if strcmp(SECONDARY_SOLVER, 'osqp') || strcmp(SECONDARY_SOLVER, 'dfgm')
+                secondary_primal_feas(iter+1, iRUNS) = sec_output.info.primal_res;
+                secondary_dual_feas(iter+1, iRUNS)   = sec_output.info.dual_res;
+            else
+                secondary_primal_feas(iter+1, iRUNS) = nan;
+                secondary_dual_feas(iter+1, iRUNS)   = nan;                
+            end
+            
             fprintf('ACADO:\t\t %d it\t %f ms\n', niter, 1000*(ACADOtLog(end) - ACADOtSimLog(end)));
             fprintf('%s:\t\t %d it\t %f ms\n', SECONDARY_SOLVER, sec_output.info.nIterations, 1000*sec_output.info.QP_time);
             fprintf('solution gap:\t %5.e\n', norm([sec_output.x(:); sec_output.u(:)] - [output.x(:); output.u(:)], inf));
@@ -543,7 +554,7 @@ for iRUNS = 1:NRUNS
             ACADOtLog(end) = NaN;
             ACADOtSimLog(end) = NaN;
             if ~isempty(SECONDARY_SOLVER)
-                secondary_solve_qp_tmp_times(end) = NaN;
+                secondary_solve_qp_times(iter+1, iRUNS) = NaN;
             end
         end
 
@@ -579,18 +590,12 @@ for iRUNS = 1:NRUNS
         if DETAILED_TIME
             minACADOtprepLog = ACADOtprepLog;
         end
-        if ~isempty(SECONDARY_SOLVER)
-            secondary_solve_qp_min_times = secondary_solve_qp_tmp_times;
-        end
     else
         minACADOtLog = min(ACADOtLog, minACADOtLog);
         minACADOtSimLog = min(ACADOtSimLog, minACADOtSimLog);
 
         if DETAILED_TIME
             minACADOtprepLog = min(ACADOtprepLog, minACADOtprepLog);
-        end
-        if ~isempty(SECONDARY_SOLVER)
-            secondary_solve_qp_min_times = min(secondary_solve_qp_tmp_times, secondary_solve_qp_min_times);
         end
     end
 end
@@ -626,10 +631,22 @@ if DETAILED_TIME
 end
 
 if ~isempty(SECONDARY_SOLVER)
-   logged_data.secondary_qptime     = secondary_solve_qp_min_times';
-   logged_data.secondary_iter       = secondary_solve_qp_iters;
-   logged_data.secondary_error_sol  = secondary_solve_qp_error;
-   logged_data.secondary_solver     = SECONDARY_SOLVER;
+
+    % ASSUMES ALWAYS SAME ITERS
+    logged_data.secondary_solver      = SECONDARY_SOLVER;
+    logged_data.secondary_qptime      = min(secondary_solve_qp_times, [], 2);
+    logged_data.secondary_iter        = secondary_solve_qp_iters(:,1);
+    logged_data.secondary_error_sol   = secondary_solve_qp_error(:,1);
+    logged_data.secondary_primal_feas = secondary_primal_feas(:,1);
+    logged_data.secondary_dual_feas   = secondary_dual_feas(:,1);
+
+%     TODO: USE THOSE INSTEAD
+%     logged_data.secondary_solver      = SECONDARY_SOLVER;
+%     logged_data.secondary_qptime      = secondary_solve_qp_times;
+%     logged_data.secondary_iter        = secondary_solve_qp_iters;
+%     logged_data.secondary_error_sol   = secondary_solve_qp_error;
+%     logged_data.secondary_primal_feas = secondary_primal_feas;
+%     logged_data.secondary_dual_feas   = secondary_dual_feas;
    
    if ~BATCH
        disp(['MAX ERROR IN SOLUTION:          ' num2str(max(abs(logged_data.secondary_error_sol)))]);
@@ -640,13 +657,28 @@ if ~isempty(SECONDARY_SOLVER)
 %        figure
        plot(minACADOtLog-minACADOtSimLog)
        hold on
-       plot(secondary_solve_qp_min_times')
+       plot(logged_data.secondary_qptime)
        title('CPU times')
        legend('acado', SECONDARY_SOLVER)
-       [(minACADOtLog-minACADOtSimLog) secondary_solve_qp_min_times' logged_data.secondary_error_sol']
-       logged_data.secondary_iter'
+       [(minACADOtLog-minACADOtSimLog) logged_data.secondary_qptime logged_data.secondary_error_sol(:,1)]
+       logged_data.secondary_iter
+       disp('ERRORS:')
+       [max(max(secondary_primal_feas)) max(max(secondary_dual_feas)) max(max(secondary_solve_qp_error))]
+       
+       % consistency checks
+       if ~check_consistency(secondary_solve_qp_iters)
+           warning('inconsistent iterations between runs')
+       end
+       if ~check_consistency(secondary_primal_feas) || ~check_consistency(secondary_dual_feas)
+           warning('inconsistent solution accuracy between runs')
+       end
+      
        keyboard
    end
+else
+    if ~BATCH
+        keyboard
+    end
 end
 
 end
