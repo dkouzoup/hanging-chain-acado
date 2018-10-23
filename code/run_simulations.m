@@ -1,3 +1,7 @@
+% TODO
+% REMOVE REDUNDANT BOUNDS IN DFGM
+% ASK PANOS ABOUT GPAD
+% FIX OSQP DIFFERENT NITER ON EACH RUN
 
 %% Initialize
 
@@ -24,41 +28,27 @@ initialize(USE_ACADO_DEV)
 
 % set_of_solvers = {'qpOASES_N3', 'qpOASES_N2', 'qpDUNES_B0', 'HPMPC_B0'};
 % set_of_N       = 10:10:100;
-set_of_solvers = {'qpOASES_e_N2'};
-set_of_N       = 30; %10:10:100;
+
+set_of_solvers   = {'qpOASES_N2', 'osqp'}; 
+set_of_N       = 10:10:20; % fiordos crashses for N > 50 (and NMASS = 3)
 
 sim_opts.WARMSTART   = 0;
-sim_opts.NMASS       = 4;
+sim_opts.NMASS       = 5;
 sim_opts.NRUNS       = 5;
 sim_opts.MPC_EXPORT  = 1;
 sim_opts.MPC_COMPILE = 1;
 sim_opts.SIM_EXPORT  = 1;
 sim_opts.SIM_COMPILE = 1;
-sim_opts.WARMSTART   = 1;
-sim_opts.CHECK_AGAINST_REF_SOL = 0;
-sim_opts.CHECK_AGAINST_ACADOS  = 'qpoases';
-sim_opts.SOL_TOL = 1e-3;
+sim_opts.CHECK_AGAINST_REF_SOL = 1;
 
 %% Run simulations
-
-% % TEMP!
-% if isempty(sim_opts.CHECK_AGAINST_ACADOS)
-%     if sim_opts.NRUNS == 1
-%         error('set more runs!')
-%     end
-% else
-%    if sim_opts.NRUNS > 1
-%         error('set one run!')
-%    end
-% end
 
 logs = {};
 
 for jj = 1:length(set_of_solvers)
-
-    sim_opts.ACADOSOLVER = set_of_solvers{jj};
-
+    
     sim_opts.VISUAL = 1;
+    sim_opts.SOLVER = set_of_solvers{jj};
 
     for ii = 1:length(set_of_N)
 
@@ -71,10 +61,21 @@ for jj = 1:length(set_of_solvers)
     end
 
     % clear all AFTER EACH SOLVER
-    save('temp_data','sim_opts','logs','jj','set_of_solvers','set_of_N');
+    save('temp_data','sim_opts','logs','ii', 'jj','set_of_solvers', 'set_of_N');
     clear all; %#ok<CLALL>
     load('temp_data');
 
+end
+
+%% Sanity checks
+
+for ii = 1:length(logs)
+    
+    if ~check_consistency(logs{ii}.iters)
+        warning(['inconsistent iterations between runs for log{' num2str(ii) '} with ' logs{ii}.solver])
+        % keyboard
+    end
+    
 end
 
 %% Save results and clean up
@@ -87,18 +88,5 @@ t = t(2:end-1);     % remove [ ]
 t(t == ' ') = '_';  % substitute spaces with underscore
 
 save(['logs' filesep 'data_' t], 'logs');
-
-plot_logs(logs);
-
-if sim_opts.CHECK_AGAINST_REF_SOL
-    max_val_err = 0;
-    for i = 1:length(logs)
-        err = max(logs{i}.val_accuracy);
-        if err > max_val_err
-            max_val_err = err;
-        end
-    end
-    display(['max err = ', num2str(max_val_err)])
-end
 
 delete_temp_files();

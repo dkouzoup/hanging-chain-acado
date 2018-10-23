@@ -17,7 +17,6 @@ if nargin < 5
     xlims = [10 100];
 end
 
-
 %% default values for inputs
 
 if nargin < 4 || isempty(FHANDLE)
@@ -134,6 +133,7 @@ if ~LOGSCALE
             'Color', color_tmp, 'Linewidth',1.5, 'LineStyle', style_tmp);
         hold on
     end
+    grid on 
     
     set_up_plot(data, false);
     xlim(xlims)
@@ -157,6 +157,7 @@ else
             'Color', color_tmp, 'linewidth',1.5, 'LineStyle', style_tmp);
         hold on
     end
+    grid on
     
     set_up_plot(data, true);
     xlim(xlims)

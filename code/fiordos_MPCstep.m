@@ -71,7 +71,7 @@ tic;
 mres = fiordos_mpc_mex(mparams, msetgs);
 tmp_cputime = toc;
 
-disp(['fiordos returned status ' num2str(mres.exitflag) ' in ' num2str(mres.iter) ' iterations'])
+% disp(['fiordos returned status ' num2str(mres.exitflag) ' in ' num2str(mres.iter) ' iterations'])
 
 fiordos_delta_x = [qp.lbx{1} reshape(mres.x(N*NU+1:end), NX, N)];
 fiordos_delta_u = reshape(mres.x(1:N*NU), NU, N);
@@ -84,48 +84,49 @@ if opts.warmstart
     sol_la = mres.la;
 end
 
-if 0
-    disp('')
-    acado_x   = input.acado_sol.x';
-    acado_u   = input.acado_sol.u';
-    
-    acado_delta_x = acado_x - input.x';
-    acado_delta_u = acado_u - input.u';
-    
-    for ii = 2:N
-        err = max(abs(acado_delta_x(:, ii) - qp.A{ii-1}*acado_delta_x(:,ii-1) - qp.B{ii-1}*acado_delta_u(:,ii-1) - qp.c{ii-1}));
-        disp(['acado error in dynamics' num2str(err)])
-    end
-    
-    for ii = 2:N
-        err = max(abs(fiordos_delta_x(:, ii) - qp.A{ii-1}*fiordos_delta_x(:,ii-1) - qp.B{ii-1}*fiordos_delta_u(:,ii-1) - qp.c{ii-1}));
-        disp(['fiordos error in dynamics' num2str(err)])
-    end
-    
-    disp(['error in x between acado and fiordos ' num2str(max(max(abs(acado_x-fiordos_x))))]);
-    disp(['error in u between acado and fiordos ' num2str(max(max(abs(acado_u-fiordos_u))))]);
-    disp('')
-    keyboard
-end 
+% disp('')
+% acado_x   = input.acado_sol.x';
+% acado_u   = input.acado_sol.u';
+% 
+% acado_delta_x = acado_x - input.x';
+% acado_delta_u = acado_u - input.u';
+% 
+% for ii = 2:N
+%     err = max(abs(acado_delta_x(:, ii) - qp.A{ii-1}*acado_delta_x(:,ii-1) - qp.B{ii-1}*acado_delta_u(:,ii-1) - qp.c{ii-1}));
+%     disp(['acado error in dynamics' num2str(err)])
+% end
+% 
+% for ii = 2:N
+%     err = max(abs(fiordos_delta_x(:, ii) - qp.A{ii-1}*fiordos_delta_x(:,ii-1) - qp.B{ii-1}*fiordos_delta_u(:,ii-1) - qp.c{ii-1}));
+%     disp(['fiordos error in dynamics' num2str(err)])
+% end
+% 
+% disp(['error in x between acado and fiordos ' num2str(max(max(abs(acado_x-fiordos_x))))]);
+% disp(['error in u between acado and fiordos ' num2str(max(max(abs(acado_u-fiordos_u))))]);
+% disp('')
+% keyboard
 
 output.x   = fiordos_x';
 output.u   = fiordos_u';
 
 if isfield(mres, 'cputime')
-    output.info.QP_time = mres.cputime;
+    output.info.cpuTime = mres.cputime;
     if 0
         fprintf('\n\nTIMING IN C CODE %3.2f TIMES FASTER\n\n', tmp_cputime/mres.cputime);
     end
 else
-    output.info.QP_time = nan;    
+    output.info.cpuTime = nan;    
 end
 
+output.info.objValue    = mres.d;
 output.info.nIterations = mres.iter;
-output.info.status = mres.exitflag;
 
-if output.info.status ~= 2
+if mres.exitflag ~= 2
     warning('Fiordos did not solve the problem!')
+    output.info.status = -1;
     keyboard
+else
+    output.info.status = 0;
 end
 
 end

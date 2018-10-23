@@ -73,15 +73,18 @@ output.u = osqp_u';
 % output.lam = res.y(1:size(Ae,1));
 % output.mu  = res.y(size(Ae,1)+1:end);
 
-output.info.QP_time = res.info.run_time; % TODO: this one?
+output.info.cpuTime  = res.info.run_time; % TODO: this one?
+output.info.objValue = res.info.obj_val;
 output.info.nIterations = res.info.iter;
-output.info.status = res.info.status;
 output.info.primal_res = res.info.pri_res; 
 output.info.dual_res = res.info.dua_res; 
 
 if ~strcmp(res.info.status, 'solved')
     warning('OSQP did not solve the problem!')
+    output.info.status = -1;
     keyboard
+else
+    output.info.status = 0;
 end
 
 end

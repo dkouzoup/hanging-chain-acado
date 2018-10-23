@@ -95,7 +95,7 @@ end
 
 %% SOLVE RELATIVE QP
 
-[sol, ~, timeElapsed, it, LAMBDA, MU] = mexedDGM(H, f, Am, Bm, beq, ub, lb, OPT, LAMBDA, acado_delta_sol);
+[sol, val, timeElapsed, it, LAMBDA, MU] = mexedDGM(H, f, Am, Bm, beq, ub, lb, OPT, LAMBDA, acado_delta_sol);
 
 sol_xu = reshape([sol; nan(NU,1)], NX+NU, N+1);
 
@@ -113,9 +113,15 @@ output.u   = dfgm_u';
 % output.lam = LAMBDA;
 % output.mu  = MU(1:length(MU)/2) - MU(length(MU)/2+1:end);
 
-output.info.QP_time = timeElapsed;
+output.info.cpuTime = timeElapsed;
 output.info.nIterations = it;
-output.info.status = nan;
+output.info.objValue = val;
+
+if it < opts.maxit
+    output.info.status = 0;
+else
+    output.info.status = 1;
+end
 
 [output.info.primal_res, output.info.dual_res] = dfgm_kkt(N, NX, NU, H, f, lb, ub, beq, qp, sol, LAMBDA, MU);
 

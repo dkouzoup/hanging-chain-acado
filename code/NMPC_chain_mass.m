@@ -18,44 +18,40 @@ addpath([pwd filesep 'utils'])
 
 %% SIMULATION OPTIONS
 
-SIM_EXPORT    = 0;              % export code for ACADO simulator
+SIM_EXPORT  = 0;            % export code for ACADO simulator
 
-SIM_COMPILE   = 0;              % compile exported code for ACADO simulator
+SIM_COMPILE = 0;            % compile exported code for ACADO simulator
 
-MPC_EXPORT    = 0;              % export code for ACADO solver
+MPC_EXPORT  = 0;            % export code for ACADO solver
 
-MPC_COMPILE   = 0;              % compile exported code for ACADO solver
+MPC_COMPILE = 0;            % compile exported code for ACADO solver
 
-NRUNS         = 5;              % run closed-loop simulation NRUNS times and store minimum timings (to minimize OS interference)
+NRUNS       = 5;            % run closed-loop simulation NRUNS times and store minimum timings (to minimize OS interference)
 
-ACADOSOLVER   = 'qpOASES_N2';   % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC'
+SOLVER      = 'dfgm';   % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC', 'dfgm', 'osqp', 'fiordos'
 
-WARMSTART     = 0;              % applicable for qpOASES/qpDUNES
+WARMSTART   = 0;            % applicable for qpOASES/qpDUNES
 
-VISUAL        = 0;              % set to 1 to visualize chain of masses (only for the first out of the NRUNS simulations)
+VISUAL      = 0;            % set to 1 to visualize chain of masses (only for the first out of the NRUNS simulations)
 
-WALL          = -0.1;           % wall position (re-export if changed)
+WALL        = -0.1;         % wall position (re-export if changed)
 
-Ts            = 0.2;            % sampling time [s]
+Ts          = 0.2;          % sampling time [s]
 
-Tf            = 5;              % final simulation time [s]
+Tf          = 5;            % final simulation time [s]
 
-N             = 50;             % prediction horizon
+N           = 50;           % prediction horizon
 
-NMASS         = 3;              % number of masses in chain (data available from 3 to 6 masses)
+NMASS       = 3;            % number of masses in chain (data available from 3 to 6 masses)
 
-To            = 5*Ts;           % how many seconds to overwrite uMPC
+To          = 5*Ts;         % how many seconds to overwrite uMPC
 
-Uo            = [-1;1;1];       % value to overwrite uMPC for To sec
+Uo          = [-1;1;1];     % value to overwrite uMPC for To sec
 
-DETAILED_TIME = 0;              % if 1, time preparation/feedback step: ONLY WORKS FOR FORCES
+CHECK_AGAINST_REF_SOL = 1;  % if 1, exports and compiles reference solver (qpOASES, CN2 by default)
 
-CHECK_AGAINST_REF_SOL = 0;      % if 1, exports and compiles reference solver (qpOASES, CN2 by default)
-
-SOL_TOL = 1e-6;                 % maximum accepted 2-norm of the deviation of the solution from the reference solution
-                                % (only used if CHECK_AGAINST_REF_SOL = 1).
-
-SECONDARY_SOLVER = 'osqp';   % empty, 'fiordos', 'dfgm' or 'osqp'
+SOL_TOL = 1e-6;             % maximum accepted 2-norm of the deviation of the solution from the reference solution
+                            % (only used if CHECK_AGAINST_REF_SOL = 1).
 
 %% Load simulation options and overwrite local ones
 
@@ -66,10 +62,6 @@ if exist('sim_opts','var')
     end
 end
 
-if DETAILED_TIME == 1 && ~strcmp(ACADOSOLVER, 'FORCES')
-    error('detailed timings only implemented for FORCES solver');
-end
-
 %% Initialization
 
 % dimensions
@@ -77,53 +69,54 @@ M  = NMASS - 2;     % number of intermediate masses
 NX = (2*M + 1)*3;   % differential states
 NU = 3;             % control inputs
 
-% MPC weights (may be hard-coded for some solvers)
+% MPC weights (hard-coded for some solvers)
 W  = blkdiag(25*eye(3), 25*eye(3*M), 1*eye(3*M), 0.01*eye(NU));
 WN = blkdiag(25*eye(3), 25*eye(3*M), 1*eye(3*M));
+% W  = blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)), 0.05*eye(3));
+% WN = blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)));
 
-if ~isempty(SECONDARY_SOLVER)
-   
-    switch SECONDARY_SOLVER
-        
-        case 'fiordos'
-            
-            sec_opts.approach  = 'dual'; % 'dual' or 'primal-dual'
-            sec_opts.tol       = 1e-2;
-            sec_opts.maxit     = 100000;
-            sec_opts.export    = 1;
-            sec_opts.compile   = 1;
-            sec_opts.infval    = 1e8;
-            sec_opts.warmstart = 1; % 0: no warmstart, 1: same solution
-            
-        case 'dfgm'
-            
-            sec_opts.warmstart = 2; % 0: no warmstart, 1: same solution, 2: shifted solution
-            sec_opts.maxit     = 100000;
-            sec_opts.tol       = 1e-2;
-            sec_opts.criterion = 1; % 1: solver's own criterion, 2: compare with acado solution (not working yet properly)
-            
-        case 'osqp'
-
-            sec_opts.warmstart = 1;
-            sec_opts.maxit     = 1000;
-            sec_opts.check_ter = 1;
-            sec_opts.abstol    = 1e-3; % 1e-3 default for both
-            sec_opts.reltol    = 1e-3;
-            
-    end
+% solver-specific options
+% TODO move ACADO opts also here
+switch SOLVER
     
+    case 'fiordos'
+        
+        opts.approach  = 'dual'; % 'dual' or 'primal-dual'
+        opts.tol       = 1e-2;
+        opts.maxit     = 100000;
+        opts.export    = MPC_EXPORT;
+        opts.compile   = MPC_COMPILE;
+        opts.infval    = 1e8;
+        opts.warmstart = 1; % 0: no warmstart, 1: same solution
+        
+    case 'dfgm'
+        
+        opts.warmstart = 2; % 0: no warmstart, 1: same solution, 2: shifted solution
+        opts.maxit     = 100000;
+        opts.tol       = 1e-2;
+        opts.criterion = 1; % 1: solver's own criterion, 2: compare with acado solution (not working yet properly)
+        
+    case 'osqp'
+        
+        opts.warmstart = 1;
+        opts.maxit     = 1000;
+        opts.check_ter = 1;
+        opts.abstol    = 1e-3; % 1e-3 default for both
+        opts.reltol    = 1e-3;
+        
 end
 
+
 % extract block size from solver name
-if contains(ACADOSOLVER,'qpDUNES')
-    bpos = strfind(ACADOSOLVER,'B');
-    QPCONDENSINGSTEPS = str2double(ACADOSOLVER(bpos+1:end));
+if contains(SOLVER,'qpDUNES')
+    bpos = strfind(SOLVER,'B');
+    QPCONDENSINGSTEPS = str2double(SOLVER(bpos+1:end));
     if QPCONDENSINGSTEPS ~= 0 &&(QPCONDENSINGSTEPS < 1 || mod(N,QPCONDENSINGSTEPS)~= 0)
         error('Invalid block size for given horizon length N.')
     end
-elseif contains(ACADOSOLVER,'HPMPC')
-    bpos = strfind(ACADOSOLVER,'B');
-    QPCONDENSINGSTEPS = str2double(ACADOSOLVER(bpos+1:end));
+elseif contains(SOLVER,'HPMPC')
+    bpos = strfind(SOLVER,'B');
+    QPCONDENSINGSTEPS = str2double(SOLVER(bpos+1:end));
     if ~(QPCONDENSINGSTEPS >=0)
         error('Invalid block size (block size has to be >= 0)')
     end
@@ -183,7 +176,7 @@ if SIM_COMPILE
     cd export_SIM
     sim_path = '../';
     make_acado_integrator([sim_path sim_name])
-    if ~isempty(SECONDARY_SOLVER)
+    if ~is_acado_solver(SOLVER)
         % NOTE: using the same integrator for simulation gives somehow wrong results
         make_acado_integrator([sim_path sim_name '_tmp'])
     end
@@ -217,7 +210,7 @@ mpc = acado.OCPexport( ocp );
 mpc.set( 'HESSIAN_APPROXIMATION',       'GAUSS_NEWTON'       );
 mpc.set( 'DISCRETIZATION_TYPE',         'MULTIPLE_SHOOTING'  );
 
-if strcmp(ACADOSOLVER,'qpOASES_N3')
+if strcmp(SOLVER,'qpOASES_N3')
 
     mpc.set( 'QP_SOLVER',               'QP_QPOASES'         );
     mpc.set( 'SPARSE_QP_SOLUTION',      'CONDENSING'         );
@@ -225,7 +218,7 @@ if strcmp(ACADOSOLVER,'qpOASES_N3')
         mpc.set( 'HOTSTART_QP',         'YES'                );
     end
 
-elseif strcmp(ACADOSOLVER,'qpOASES_N2')
+elseif strcmp(SOLVER,'qpOASES_N2')
 
     mpc.set( 'QP_SOLVER',               'QP_QPOASES'         );
     mpc.set( 'SPARSE_QP_SOLUTION',      'FULL_CONDENSING_N2' );
@@ -233,7 +226,7 @@ elseif strcmp(ACADOSOLVER,'qpOASES_N2')
         mpc.set( 'HOTSTART_QP',         'YES'                );
     end
 
-elseif strcmp(ACADOSOLVER,'qpOASES_e_N3')
+elseif strcmp(SOLVER,'qpOASES_e_N3')
 
     mpc.set( 'QP_SOLVER',               'QP_QPOASES3'        );
     mpc.set( 'SPARSE_QP_SOLUTION',      'CONDENSING'         );
@@ -241,7 +234,7 @@ elseif strcmp(ACADOSOLVER,'qpOASES_e_N3')
         mpc.set( 'HOTSTART_QP',         'YES'                );
     end
 
-elseif strcmp(ACADOSOLVER,'qpOASES_e_N2')
+elseif strcmp(SOLVER,'qpOASES_e_N2')
 
     mpc.set( 'QP_SOLVER',               'QP_QPOASES3'        );
     mpc.set( 'SPARSE_QP_SOLUTION',      'FULL_CONDENSING_N2' );
@@ -249,25 +242,32 @@ elseif strcmp(ACADOSOLVER,'qpOASES_e_N2')
         mpc.set( 'HOTSTART_QP',         'YES'                );
     end
 
-elseif contains(ACADOSOLVER,'qpDUNES') && QPCONDENSINGSTEPS <= 1
+elseif contains(SOLVER,'qpDUNES') && QPCONDENSINGSTEPS <= 1
 
     mpc.set( 'QP_SOLVER',               'QP_QPDUNES'         );
     mpc.set( 'SPARSE_QP_SOLUTION',      'SPARSE_SOLVER'      );
-    if WARMSTART % TODO: IS THIS USED ANYWHERE IN ACADO?!
-        mpc.set( 'HOTSTART_QP',         'YES'                );
-    end
-
-elseif contains(ACADOSOLVER,'qpDUNES') && QPCONDENSINGSTEPS > 1
-
-    mpc.set( 'QP_SOLVER',               'QP_QPDUNES'         );
-    mpc.set( 'SPARSE_QP_SOLUTION',      'BLOCK_CONDENSING_N2');
-    mpc.set( 'CONDENSING_BLOCK_SIZE',    QPCONDENSINGSTEPS   );
+    mpc.set( 'HOTSTART_QP',             'YES'                ); % probably not needed
     if WARMSTART == 0
         warning('qpDUNES with cold start not implemented in ACADO');
         keyboard
     end
-elseif strcmp(ACADOSOLVER,'FORCES_BC') % TODO FIX
 
+elseif contains(SOLVER,'qpDUNES') && QPCONDENSINGSTEPS > 1
+
+    mpc.set( 'QP_SOLVER',               'QP_QPDUNES'         );
+    mpc.set( 'SPARSE_QP_SOLUTION',      'BLOCK_CONDENSING_N2');
+    mpc.set( 'CONDENSING_BLOCK_SIZE',    QPCONDENSINGSTEPS   );
+    mpc.set( 'HOTSTART_QP',             'YES'                ); % probably not needed
+
+    if WARMSTART == 0
+        warning('qpDUNES with cold start not implemented in ACADO');
+        keyboard
+    end
+    
+elseif strcmp(SOLVER,'FORCES_BC')
+    
+    error('interface of FORCES with block condensing broken');
+    
     if QPCONDENSINGSTEPS == 1
         mpc.set( 'SPARSE_QP_SOLUTION',  'SPARSE_SOLVER');
     else
@@ -278,13 +278,13 @@ elseif strcmp(ACADOSOLVER,'FORCES_BC') % TODO FIX
     mpc.set( 'QP_SOLVER',               'QP_FORCES'          );
 
 
-elseif strcmp(ACADOSOLVER,'FORCES')
+elseif strcmp(SOLVER,'FORCES')
 
     mpc.set( 'QP_SOLVER',               'QP_FORCES'          );
     mpc.set( 'SPARSE_QP_SOLUTION',      'SPARSE_SOLVER'      );
 
 
-elseif contains(ACADOSOLVER,'HPMPC')
+elseif contains(SOLVER,'HPMPC')
 
     mpc.set( 'QP_SOLVER',               'QP_HPMPC'           );
     mpc.set( 'SPARSE_QP_SOLUTION',      'SPARSE_SOLVER'      );
@@ -294,9 +294,9 @@ elseif contains(ACADOSOLVER,'HPMPC')
     end
 
 else
-
-    error('SPECIFIED SOLVER DOES NOT EXIST')
-
+    if ~strcmp(SOLVER, 'dfgm') && ~strcmp(SOLVER, 'osqp') && ~strcmp(SOLVER, 'fiordos')
+        error('SPECIFIED SOLVER DOES NOT EXIST')
+    end
 end
 
 mpc.set( 'INTEGRATOR_TYPE',             'INT_IRK_GL2'        );
@@ -310,7 +310,9 @@ if exist('export_MPC', 'dir') && MPC_EXPORT == 1 && MPC_COMPILE == 1
 end
 
 if MPC_EXPORT
-    mpc.exportCode( 'export_MPC' );
+    if is_acado_solver(SOLVER)
+        mpc.exportCode( 'export_MPC' );
+    end
     if CHECK_AGAINST_REF_SOL
         mpc.set( 'QP_SOLVER',               'QP_QPOASES'         );
         mpc.set( 'SPARSE_QP_SOLUTION',      'FULL_CONDENSING_N2' );
@@ -319,43 +321,41 @@ if MPC_EXPORT
 end
 
 if MPC_COMPILE
-    cd export_MPC
-
-    % add solver directory in export_MPC folder
-    if contains(ACADOSOLVER,'qpDUNES')
-        if QPCONDENSINGSTEPS == 0
-            % use clipping
-            waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'qpDUNES'], 'qpdunes'));
-        else
-            % use qpDUNES+qpOASES
-            waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'qpDUNES-dev'], 'qpdunes'));
+    if is_acado_solver(SOLVER)
+        cd export_MPC
+        
+        % add solver directory in export_MPC folder
+        if contains(SOLVER,'qpDUNES')
+            if QPCONDENSINGSTEPS == 0
+                % use clipping
+                waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'qpDUNES'], 'qpdunes'));
+            else
+                % use qpDUNES+qpOASES
+                waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'qpDUNES-dev'], 'qpdunes'));
+            end
         end
-    end
-    if contains(ACADOSOLVER,'qpOASES_N')
-        waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'acado-dev' filesep 'external_packages' filesep 'qpoases'], 'qpoases'));
-    end
-    if contains(ACADOSOLVER,'qpOASES_e_N')
-        waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'acado-dev' filesep 'external_packages' filesep 'qpoases3'], 'qpoases3'));
-    end
-    if contains(ACADOSOLVER,'HPMPC')
-        % TODO: either support HPMPC_old too (by adding submodule) or remove option in acado template
-        waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'blasfeo'], 'blasfeo'));
-        waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'hpmpc'], 'hpmpc'));
-    end
-
-
-    if contains(ACADOSOLVER, 'FORCES')
-        % needed to give time to overwrite things
-        % keyboard
-        pause(10)
-    end
-    if DETAILED_TIME
-        make_timing_forces('../acado_MPCstep')
-    else
+        if contains(SOLVER,'qpOASES_N')
+            waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'acado-dev' filesep 'external_packages' filesep 'qpoases'], 'qpoases'));
+        end
+        if contains(SOLVER,'qpOASES_e_N')
+            waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'acado-dev' filesep 'external_packages' filesep 'qpoases3'], 'qpoases3'));
+        end
+        if contains(SOLVER,'HPMPC')
+            % TODO: either support HPMPC_old too (by adding submodule) or remove option in acado template
+            waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'blasfeo'], 'blasfeo'));
+            waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'hpmpc'], 'hpmpc'));
+        end
+        
+        
+        if contains(SOLVER, 'FORCES')
+            % needed to give time to overwrite things
+            % keyboard
+            pause(10)
+        end
+        
         make_acado_solver('../acado_MPCstep')
+        cd ..
     end
-    cd ..
-
     if CHECK_AGAINST_REF_SOL
         cd export_ref_MPC
         waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'acado-dev' filesep 'external_packages' filesep 'qpoases'], 'qpoases'));
@@ -365,42 +365,49 @@ if MPC_COMPILE
 end
 
 
-if strcmp(SECONDARY_SOLVER, 'fiordos')
-   fiordos_code_generate(N, NX, NU, W, WN, sec_opts); 
+if strcmp(SOLVER, 'fiordos')
+   fiordos_code_generate(N, NX, NU, W, WN, opts); 
 end
 
-if strcmp(SECONDARY_SOLVER, 'dfgm')
-   dfgm_compile(N, NX, NU, sec_opts); 
+if strcmp(SOLVER, 'dfgm')
+   dfgm_compile(N, NX, NU, opts); 
 end
 
 %% Closed loop simulations
 
-% minimum timings of solver over NRUNS
-minACADOtLog = [];
+logged_outputs = cell(1, Tf/Ts);
+solve_qp_times = nan(Tf/Ts, NRUNS);
+simulate_times = nan(Tf/Ts, NRUNS);
+solve_qp_iters = nan(Tf/Ts, NRUNS);
+primal_feas    = nan(Tf/Ts, NRUNS);
+dual_feas      = nan(Tf/Ts, NRUNS);
+ref_sol_err    = nan(Tf/Ts, NRUNS);
+ref_val_err    = nan(Tf/Ts, NRUNS);
 
-if ~isempty(SECONDARY_SOLVER)
-    secondary_solve_qp_times = [];
-    secondary_solve_qp_iters = [];
-    secondary_solve_qp_error = [];
-    secondary_primal_feas    = [];
-    secondary_dual_feas      = [];
-end
-        
 for iRUNS = 1:NRUNS
 
-    if strcmp(SECONDARY_SOLVER, 'osqp')
-        osqp_prob = osqp_setup(N, NX, NU, W, WN, sec_opts);
+    if strcmp(SOLVER, 'osqp')
+        % TODO: FIX PROBLEM WITH INCONSISTENT NUMBER OF ITERATIONS ACROSS RUNS
+        osqp_prob = osqp_setup(N, NX, NU, W, WN, opts);
     end
 
     X0   = fsolve_ref;
     Xref = repmat(fsolve_ref.',N+1,1);
     Uref = zeros(N,NU);
 
-    input.x = repmat(X0.',N+1,1);
+    % initialize input struct
+    input.x  = repmat(X0.',N+1,1);
     input.u  = Uref;
     input.y  = [Xref(1:N,:) Uref];
     input.yN = fsolve_ref.';
-
+    input.W  = W;
+    input.WN = WN;
+    if ~is_acado_solver(SOLVER)
+        input.WALL = WALL;
+        input.LBU  = -ones(NU,1);
+        input.UBU  = ones(NU,1);
+    end
+    
     disp('------------------------------------------------------------------')
     disp('               Simulation Loop'                                    )
     disp('------------------------------------------------------------------')
@@ -411,76 +418,57 @@ for iRUNS = 1:NRUNS
     controls_MPC = [];
     state_sim    = X0.';
 
-    ACADOtLog     = [];  % log timings of solver
-    ACADOtSimLog  = [];  % log simulation timings of solver
-    ACADOoutputs  = {};  % log all ACADO outputs
-    ACADOnIter    = [];  % log iterations (if available)
-    sol_accuracy  = [];  % log accuracy (deviation from reference solution) of the solution (if available)
-    val_accuracy  = [];  % log accuracy (deviation from reference obj value) of the solution (if available)
-
-    if DETAILED_TIME
-        ACADOtprepLog = [];  % log preparation times
-    end
-
     if VISUAL && iRUNS == 1
         visualize;
     end
-
-    % weights
-    % input.W  = blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)), 0.05*eye(3));
-    % input.WN = blkdiag(15*eye(3), 10*eye(length(x)), eye(length(v)));
-    input.W  = W;
-    input.WN = WN;
 
     % clear mex memory for acado solver
     clear mex %#ok<CLMEX>
 
     while time(end) < Tf
 
-        % Solve NMPC OCP with ACADO
+        % update initial condition
         input.x0 = state_sim(end,:);
-        output   = acado_MPCstep(input);
 
-        if ~isempty(SECONDARY_SOLVER)
+        % RTI step
+        % TODO: merge to one call using function pointers and wrapping acado function
+        if is_acado_solver(SOLVER)
             
-            sec_input = input;
-            sec_input.acado_sol = output;
-            sec_input.WALL    = WALL;
-            sec_input.LBU     = -ones(NU,1);
-            sec_input.UBU     = ones(NU,1);
+            output = acado_MPCstep(input);
             
-            switch SECONDARY_SOLVER
+            % field name changed in future ACADO versions
+            if isfield(output.info, 'QP_iter')
+                output.info.nIterations = output.info.QP_iter;
+            else
+                output.info.nIterations = output.info.nIterations;
+            end
+            
+        else
+            switch SOLVER
                 
-                case 'fiordos'
-                    sec_output = fiordos_MPCstep(sec_input, sec_opts, time(end));
-                    
                 case 'dfgm'
-                  
-                    sec_output = dfgm_MPCstep(sec_input, sec_opts, time(end));
-                  
+                    output = dfgm_MPCstep(input, opts, time(end));
+                case 'fiordos'
+                    output = fiordos_MPCstep(input, opts, time(end));
                 case 'osqp'
-                    sec_input.prob = osqp_prob;
-                    sec_output = osqp_MPCstep(sec_input, sec_opts, time(end));
+                    input.prob = osqp_prob;
+                    output = osqp_MPCstep(input, opts, time(end));
             end
         end
         
+        % TODO: correct objVal of non acado solvers with constant term
         if CHECK_AGAINST_REF_SOL
             ref_output = acado_ref_MPCstep(input);
-            if isempty(SECONDARY_SOLVER)
-                sol_err = max(norm(output.x - ref_output.x, Inf), norm(output.u - ref_output.u, Inf));
-                val_err = abs(output.info.objValue - ref_output.info.objValue)/max(1, ref_output.info.objValue);
-            else
-                sol_err = max(norm(sec_output.x - ref_output.x, Inf), norm(sec_output.u - ref_output.u, Inf));
-                val_err = nan;% abs(sec_output.info.objValue - ref_output.info.objValue)/max(1, ref_output.info.objValue);                
-            end
+            sol_err    = max(norm(output.x - ref_output.x, Inf), norm(output.u - ref_output.u, Inf));
+            val_err    = abs(output.info.objValue - ref_output.info.objValue)/max(1, ref_output.info.objValue);
+            
             if sol_err > SOL_TOL || val_err > SOL_TOL
-%                 keyboard
                 warning(['failed to meet accuracy of ', num2str(SOL_TOL), '( sol_err = ', ...
                     num2str(sol_err), ', val_err = ', num2str(val_err), ')' ])
             end
 
-            sol_accuracy = [sol_accuracy sol_err];
-            val_accuracy = [val_accuracy val_err];
+            ref_sol_err(iter+1, iRUNS) = sol_err;
+            ref_val_err(iter+1, iRUNS) = val_err;
         end
 
         if output.info.status ~= 1 &&  output.info.status ~= 0
@@ -493,50 +481,31 @@ for iRUNS = 1:NRUNS
             keyboard
         end
 
-        % field name changed in future ACADO versions
-        if isfield(output.info, 'QP_iter')
-            niter = output.info.QP_iter;
-        else
-            niter = output.info.nIterations;
-        end
 
-        ACADOnIter = [ACADOnIter niter];
-        ACADOoutputs{end+1} = output;
-        ACADOtLog = [ACADOtLog; output.info.cpuTime];
+        % LOG DATA
+        if iRUNS == 1
+            logged_outputs{iter+1} = output;
+        end
+        
+        solve_qp_times(iter+1, iRUNS) = output.info.cpuTime;
+        solve_qp_iters(iter+1, iRUNS) = output.info.nIterations;
+
         if isfield(output.info, 'simTime')
-            ACADOtSimLog = [ACADOtSimLog; output.info.simTime];
+            simulate_times(iter+1, iRUNS) = output.info.simTime;
         else
-            ACADOtSimLog = [ACADOtSimLog; inf];
+            simulate_times(iter+1, iRUNS) = 0;
         end
-
-        if DETAILED_TIME
-            ACADOtprepLog = [ACADOtprepLog; output.info.preparationTime];
+        
+        if isfield(output.info, 'primal_res')
+            primal_feas(iter+1, iRUNS) = output.info.primal_res;
+            dual_feas(iter+1, iRUNS)   = output.info.dual_res;
+        else
+            primal_feas(iter+1, iRUNS) = nan;
+            dual_feas(iter+1, iRUNS)   = nan;
         end
-
-        if ~isempty(SECONDARY_SOLVER)
-            secondary_solve_qp_times(iter+1, iRUNS) = sec_output.info.QP_time;
-            secondary_solve_qp_iters(iter+1, iRUNS) = sec_output.info.nIterations;
-            secondary_solve_qp_error(iter+1, iRUNS) = norm([sec_output.x(:); sec_output.u(:)] - [output.x(:); output.u(:)], inf);
-            
-            if strcmp(SECONDARY_SOLVER, 'osqp') || strcmp(SECONDARY_SOLVER, 'dfgm')
-                secondary_primal_feas(iter+1, iRUNS) = sec_output.info.primal_res;
-                secondary_dual_feas(iter+1, iRUNS)   = sec_output.info.dual_res;
-            else
-                secondary_primal_feas(iter+1, iRUNS) = nan;
-                secondary_dual_feas(iter+1, iRUNS)   = nan;                
-            end
-            
-            fprintf('ACADO:\t\t %d it\t %f ms\n', niter, 1000*(ACADOtLog(end) - ACADOtSimLog(end)));
-            fprintf('%s:\t\t %d it\t %f ms\n', SECONDARY_SOLVER, sec_output.info.nIterations, 1000*sec_output.info.QP_time);
-            fprintf('solution gap:\t %5.e\n', norm([sec_output.x(:); sec_output.u(:)] - [output.x(:); output.u(:)], inf));
-        end
-
-        % USE SOLUTION OF SECONDARY SOLVER INSTEAD OF ACADO
-        if ~isempty(SECONDARY_SOLVER)
-            output.x = sec_output.x;
-            output.u = sec_output.u;
-        end
-
+        
+        fprintf('%s:\t\t %d it\t %f ms\n', SOLVER, output.info.nIterations, 1000*output.info.cpuTime);
+        
         % Save the MPC step
         controls_MPC = [controls_MPC; output.u(1,:)];
 
@@ -551,11 +520,8 @@ for iRUNS = 1:NRUNS
         if time(end) < To
             sim_input.u = Uo;
             % do not take these instances into account for timings
-            ACADOtLog(end) = NaN;
-            ACADOtSimLog(end) = NaN;
-            if ~isempty(SECONDARY_SOLVER)
-                secondary_solve_qp_times(iter+1, iRUNS) = NaN;
-            end
+            solve_qp_times(iter+1, iRUNS) = NaN;
+            simulate_times(iter+1, iRUNS) = NaN;
         end
 
         [states, outputs] = eval([ sim_name,'(sim_input)']);
@@ -569,11 +535,7 @@ for iRUNS = 1:NRUNS
         [nbx, nbu] = active_constraints(output, WALL, 1);
         disp(['nbx:' num2str(nbx) ' nbu:' num2str(nbu)])
 
-        if DETAILED_TIME
-            disp(['current time: ' num2str(nextTime) '   ' char(9) ' (pre. step: ' num2str(output.info.preparationTime*1e3) ' ms)'])
-        else
-            disp(['current time: ' num2str(nextTime) '   ' char(9) ' (RTI step: ' num2str(output.info.cpuTime*1e3) ' ms)'])
-        end
+        disp(['current time: ' num2str(nextTime) '   ' char(9) ' (RTI step: ' num2str(output.info.cpuTime*1e3) ' ms)'])
 
         if VISUAL && iRUNS == 1
             visualize;
@@ -583,102 +545,59 @@ for iRUNS = 1:NRUNS
 
     % delete last time instant
     time(end) = [];
-
-    if iRUNS == 1
-        minACADOtLog = ACADOtLog;
-        minACADOtSimLog = ACADOtSimLog;
-        if DETAILED_TIME
-            minACADOtprepLog = ACADOtprepLog;
-        end
-    else
-        minACADOtLog = min(ACADOtLog, minACADOtLog);
-        minACADOtSimLog = min(ACADOtSimLog, minACADOtSimLog);
-
-        if DETAILED_TIME
-            minACADOtprepLog = min(ACADOtprepLog, minACADOtprepLog);
-        end
-    end
 end
 
 if exist('sim_opts','var')
     figure
-    plot(time,1000*minACADOtLog,'lineWidth',2)
+    plot(time,1000*min(solve_qp_times, [], 2),'lineWidth',2)
     title('Timings of RTI scheme in closed loop','fontSize',16,'fontWeight','Normal')
     xlabel('Time [s]','fontSize',16)
     ylabel('CPU time [ms]','fontSize',16)
-    leg = legend(ACADOSOLVER);
+    leg = legend(SOLVER);
     leg.FontSize = 16;
     set(gca,'fontSize',16)
 end
 
 % store simulation information
-logged_data.wall    = WALL;
-logged_data.Ts      = Ts;
-logged_data.N       = N;
-logged_data.Nmass   = NMASS;
-logged_data.nruns   = NRUNS;
-logged_data.cputime = minACADOtLog;
-logged_data.simtime = minACADOtSimLog;
-logged_data.iters   = ACADOnIter;
-logged_data.outputs = ACADOoutputs;
-logged_data.Nblock  = QPCONDENSINGSTEPS;
-logged_data.solver  = ACADOSOLVER;
-logged_data.sol_accuracy = sol_accuracy;
-logged_data.val_accuracy = val_accuracy;
+logged_data.wall        = WALL;
+logged_data.Ts          = Ts;
+logged_data.N           = N;
+logged_data.Nmass       = NMASS;
+logged_data.nruns       = NRUNS;
+logged_data.outputs     = logged_outputs;
+logged_data.Nblock      = QPCONDENSINGSTEPS;
+logged_data.solver      = SOLVER;
+logged_data.cputime     = solve_qp_times;
+logged_data.simtime     = simulate_times;
+logged_data.iters       = solve_qp_iters;
+logged_data.primal_feas = primal_feas;
+logged_data.dual_feas   = dual_feas;
 
-if DETAILED_TIME
-   logged_data.prepTime = ACADOtprepLog;
+if CHECK_AGAINST_REF_SOL
+    logged_data.ref_sol_err = ref_sol_err;
+    logged_data.ref_val_err = ref_val_err;
 end
 
-if ~isempty(SECONDARY_SOLVER)
-
-    % ASSUMES ALWAYS SAME ITERS
-    logged_data.secondary_solver      = SECONDARY_SOLVER;
-    logged_data.secondary_qptime      = min(secondary_solve_qp_times, [], 2);
-    logged_data.secondary_iter        = secondary_solve_qp_iters(:,1);
-    logged_data.secondary_error_sol   = secondary_solve_qp_error(:,1);
-    logged_data.secondary_primal_feas = secondary_primal_feas(:,1);
-    logged_data.secondary_dual_feas   = secondary_dual_feas(:,1);
-
-%     TODO: USE THOSE INSTEAD
-%     logged_data.secondary_solver      = SECONDARY_SOLVER;
-%     logged_data.secondary_qptime      = secondary_solve_qp_times;
-%     logged_data.secondary_iter        = secondary_solve_qp_iters;
-%     logged_data.secondary_error_sol   = secondary_solve_qp_error;
-%     logged_data.secondary_primal_feas = secondary_primal_feas;
-%     logged_data.secondary_dual_feas   = secondary_dual_feas;
-   
-   if ~BATCH
-       disp(['MAX ERROR IN SOLUTION:          ' num2str(max(abs(logged_data.secondary_error_sol)))]);
-       close all
-%        plot(minACADOtLog-minACADOtSimLog);
-%        hold on
-%        plot(fiordos_solve_qp_min_times);
-%        figure
-       plot(minACADOtLog-minACADOtSimLog)
-       hold on
-       plot(logged_data.secondary_qptime)
-       title('CPU times')
-       legend('acado', SECONDARY_SOLVER)
-       [(minACADOtLog-minACADOtSimLog) logged_data.secondary_qptime logged_data.secondary_error_sol(:,1)]
-       logged_data.secondary_iter
-       disp('ERRORS:')
-       [max(max(secondary_primal_feas)) max(max(secondary_dual_feas)) max(max(secondary_solve_qp_error))]
-       
-       % consistency checks
-       if ~check_consistency(secondary_solve_qp_iters)
-           warning('inconsistent iterations between runs')
-       end
-       if ~check_consistency(secondary_primal_feas) || ~check_consistency(secondary_dual_feas)
-           warning('inconsistent solution accuracy between runs')
-       end
-      
-       keyboard
-   end
-else
-    if ~BATCH
-        keyboard
+if ~BATCH
+    
+    if CHECK_AGAINST_REF_SOL
+        disp(' ');
+        disp(['MAX ERROR IN SOLUTION: ' num2str(max(max(logged_data.ref_sol_err)))]);
     end
+    
+    disp('ERRORS:')
+    [max(max(primal_feas)) max(max(dual_feas)) max(max(ref_sol_err))]
+    
+    % consistency checks
+    if ~check_consistency(solve_qp_iters)
+        warning('inconsistent iterations between runs')
+    end
+    if ~any(any(isnan(primal_feas)))
+        if ~check_consistency(primal_feas) || ~check_consistency(dual_feas)
+            warning('inconsistent solution accuracy between runs')
+        end
+    end
+    keyboard
 end
 
 end
