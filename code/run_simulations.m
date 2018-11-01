@@ -1,7 +1,3 @@
-% TODO
-% REMOVE REDUNDANT BOUNDS IN DFGM
-% ASK PANOS ABOUT GPAD
-% FIX OSQP DIFFERENT NITER ON EACH RUN
 
 %% Initialize
 
@@ -29,12 +25,12 @@ initialize(USE_ACADO_DEV)
 % set_of_solvers = {'qpOASES_N3', 'qpOASES_N2', 'qpDUNES_B0', 'HPMPC_B0'};
 % set_of_N       = 10:10:100;
 
-set_of_solvers   = {'qpOASES_N2', 'osqp'}; 
-set_of_N       = 10:10:20; % fiordos crashses for N > 50 (and NMASS = 3)
+set_of_solvers   = {'osqp'}%, 'dfgm', 'qpOASES_N2', 'HPMPC_B0'}; 
+set_of_N       = 10:10:80; % fiordos crashses for N > 50 (and NMASS = 3)
 
 sim_opts.WARMSTART   = 0;
-sim_opts.NMASS       = 5;
-sim_opts.NRUNS       = 5;
+sim_opts.NMASS       = 4;
+sim_opts.NRUNS       = 1;
 sim_opts.MPC_EXPORT  = 1;
 sim_opts.MPC_COMPILE = 1;
 sim_opts.SIM_EXPORT  = 1;
@@ -52,6 +48,9 @@ for jj = 1:length(set_of_solvers)
 
     for ii = 1:length(set_of_N)
 
+        if set_of_N(ii) > 50 && strcmp(set_of_solvers{jj}, 'fiordos')
+            break
+        end
         sim_opts.N = set_of_N(ii);
         logs{end+1} = NMPC_chain_mass(sim_opts);
 
@@ -73,7 +72,7 @@ for ii = 1:length(logs)
     
     if ~check_consistency(logs{ii}.iters)
         warning(['inconsistent iterations between runs for log{' num2str(ii) '} with ' logs{ii}.solver])
-        % keyboard
+        keyboard
     end
     
 end

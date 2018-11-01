@@ -97,13 +97,12 @@ switch SOLVER
         opts.criterion = 1; % 1: solver's own criterion, 2: compare with acado solution (not working yet properly)
         
     case 'osqp'
-        
-        opts.warmstart = 1;
-        opts.maxit     = 1000;
-        opts.check_ter = 1;
-        opts.abstol    = 1e-3; % 1e-3 default for both
-        opts.reltol    = 1e-3;
-        
+        % leave empty for default
+        opts.warmstart       = 1;
+        opts.maxit           = 1000;
+        opts.check_ter       = [];
+        opts.tol             = [];
+        opts.with_setup_time = true;
 end
 
 
@@ -455,11 +454,12 @@ for iRUNS = 1:NRUNS
                     output = osqp_MPCstep(input, opts, time(end));
             end
         end
+        % TODO: check also slack_res
         
         % TODO: correct objVal of non acado solvers with constant term
         if CHECK_AGAINST_REF_SOL
             ref_output = acado_ref_MPCstep(input);
-            sol_err    = max(norm(output.x - ref_output.x, Inf), norm(output.u - ref_output.u, Inf));
+            sol_err    = max(norm(output.x(:) - ref_output.x(:), Inf), norm(output.u(:) - ref_output.u(:), Inf));
             val_err    = abs(output.info.objValue - ref_output.info.objValue)/max(1, ref_output.info.objValue);
             
             if sol_err > SOL_TOL || val_err > SOL_TOL
