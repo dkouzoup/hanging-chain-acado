@@ -9,9 +9,16 @@
 # loggings
 code/logs/*.mat
 
-# acados
-external/acados_install*
+# fiordos
+code/fiordos_controller/*
 
 # ACADO
 code/export_MPC/*
+code/export_ref_MPC/*
 code/export_SIM/*
+code/mpc_data_acadodata_*.txt
+code/sim_data_acadodata_*.txt
+code/sim.cpp
+code/sim_RUN.m
+code/mpc.cpp
+code/mpc_RUN.m
