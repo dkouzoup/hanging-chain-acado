@@ -18,13 +18,13 @@ addpath([pwd filesep 'utils'])
 
 %% SIMULATION OPTIONS
 
-SIM_EXPORT  = 0;            % export code for ACADO simulator
+SIM_EXPORT  = 1;            % export code for ACADO simulator
 
-SIM_COMPILE = 0;            % compile exported code for ACADO simulator
+SIM_COMPILE = 1;            % compile exported code for ACADO simulator
 
-MPC_EXPORT  = 0;            % export code for ACADO solver
+MPC_EXPORT  = 1;            % export code for ACADO solver
 
-MPC_COMPILE = 0;            % compile exported code for ACADO solver
+MPC_COMPILE = 1;            % compile exported code for ACADO solver
 
 NRUNS       = 5;            % run closed-loop simulation NRUNS times and store minimum timings (to minimize OS interference)
 
@@ -95,7 +95,8 @@ switch SOLVER
         opts.maxit     = 100000;
         opts.tol       = 1e-2;
         opts.criterion = 1; % 1: solver's own criterion, 2: compare with acado solution (not working yet properly)
-        
+        opts.useExternalLibraries = 0;
+    
     case 'osqp'
         % leave empty for default
         opts.warmstart       = 1;

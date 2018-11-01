@@ -7,7 +7,7 @@ tmp = pwd;
 cd('../external/mexedDGM/');
 updateProblemDimensions(N, NX, NU);
 
-OPT.useExternalLibraries = 1;
+OPT.useExternalLibraries = opts.useExternalLibraries;
 
 if opts.criterion == 1
     OPT.terminationCondition = 1; % 1 for gradient map, 2 for maxit, 3 for known optimal solution    
