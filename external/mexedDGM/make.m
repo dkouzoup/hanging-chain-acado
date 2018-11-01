@@ -17,9 +17,16 @@ LDFLAGS = [];
 try
     if OPT.useExternalLibraries == 1
         DFLAGS = [DFLAGS ' -DUSE_EXTERNAL_LIBRARIES '];
+%         if ~ismac
+%             DFLAGS = [DFLAGS '-g ']; % tmp hack to fix segfault on linux
+%         end
         
         % Linker flags
-        LDFLAGS = 'LDFLAGS="\$LDFLAGS -framework Accelerate"';
+        if ismac
+            LDFLAGS = 'LDFLAGS="\$LDFLAGS -framework Accelerate"';
+        else
+            LDFLAGS = 'LDFLAGS="\$LDFLAGS"';
+        end
     end
 catch
     %do nothing
@@ -41,6 +48,10 @@ end
 
 % C files
 FILES   = [' gdfgm_mex.c ' 'gdfgm_solve.c ' 'gdfgm_utils.c ' 'gdfgm_algebra.c ' 'gdfgm_core.c ' 'timing.c '];
+
+if ~ismac && OPT.useExternalLibraries == 1
+    FILES = [FILES ' -lblas -llapack'];
+end
 
 % mex command
 eval(['mex -v ' DFLAGS LDFLAGS FILES]);

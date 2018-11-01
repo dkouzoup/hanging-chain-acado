@@ -25,12 +25,12 @@ initialize(USE_ACADO_DEV)
 % set_of_solvers = {'qpOASES_N3', 'qpOASES_N2', 'qpDUNES_B0', 'HPMPC_B0'};
 % set_of_N       = 10:10:100;
 
-set_of_solvers   = {'osqp'}%, 'dfgm', 'qpOASES_N2', 'HPMPC_B0'}; 
+set_of_solvers   = {'dfgm', 'osqp', 'qpOASES_N2', 'HPMPC_B0'}; 
 set_of_N       = 10:10:80; % fiordos crashses for N > 50 (and NMASS = 3)
 
 sim_opts.WARMSTART   = 0;
-sim_opts.NMASS       = 4;
-sim_opts.NRUNS       = 1;
+sim_opts.NMASS       = 3;
+sim_opts.NRUNS       = 5;
 sim_opts.MPC_EXPORT  = 1;
 sim_opts.MPC_COMPILE = 1;
 sim_opts.SIM_EXPORT  = 1;

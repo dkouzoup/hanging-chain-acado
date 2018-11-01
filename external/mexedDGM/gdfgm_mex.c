@@ -8,6 +8,11 @@
 
 #include "mex.h"
 
+#ifndef __APPLE__
+typedef bool boolean_t;
+typedef double real_t;
+#endif
+
 /* Input Arguments */
 
 #define	H_IN   prhs[0]
