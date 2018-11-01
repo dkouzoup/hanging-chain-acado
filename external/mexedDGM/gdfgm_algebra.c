@@ -193,7 +193,7 @@ void myblas_dgemv (const int Order, const int TransA,
 
 	       for (i = 0; i < N; i++)
 		    for (j = 0; j < M; j++)
-			 Y[i] += A[i*N+j]*X[j];
+			 Y[i] += A[i*M+j]*X[j];
 	       
 	       for (i = 0; i < N; i++)
 		    Y[i] *= alpha;
