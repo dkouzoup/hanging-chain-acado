@@ -11,7 +11,7 @@ import acados.*
 M  = NMASS - 2;
 NX = (2*M + 1)*3;
 NU = 3;
-BS = extract_block_size(SOLVER);
+BS = extract_block_size(SOLVER, N);
 
 if isempty(BS)
     N2 = N;
@@ -71,6 +71,8 @@ elseif contains(SOLVER,'qpOASES_e_N2')
     
 elseif contains(SOLVER,'qpDUNES') && N2 <= 1
 
+    error('acados-matlab does not support qpDUNES yet');
+    
     nlp.initialize_solver('rti', struct('qp_solver', 'qpdunes', 'clipping', 1));
 
     if WARMSTART
@@ -79,15 +81,17 @@ elseif contains(SOLVER,'qpDUNES') && N2 <= 1
 
 elseif contains(SOLVER,'qpDUNES') && N2 > 1
 
+    error('acados-matlab does not support qpDUNES yet');
+    
     nlp.initialize_solver('rti', struct('qp_solver', 'qpdunes', 'clipping', 0, 'N2', N2));
 
     if WARMSTART
         % TODO
     end
     
-elseif contains(SOLVER,'HPIPM')
+elseif contains(SOLVER, 'HPIPM')
 
-    nlp.initialize_solver('sqp', struct('qp_solver', 'hpipm', 'max_iter', 1, 'N2', N2));
+    nlp.initialize_solver('rti', struct('qp_solver', 'hpipm', 'N2', N2));
 
 else
     error('SPECIFIED SOLVER DOES NOT EXIST')

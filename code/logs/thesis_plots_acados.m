@@ -3,11 +3,9 @@ clear all; close all; clc
 
 PATH = '~/Documents/Repositories/GIT/thesis/image/qpstory/';
 
-NM  = 4;
+NM  = 5;
 
 load(['acados_M' num2str(NM) '.mat']);
-
-warning('TAKE SIM TIMINGS INTO ACCOUNT FOR ACADO!')
 
 %%
 
@@ -61,3 +59,5 @@ plot_timings(logs(find(acado)), true, 'max', true, fhandle, [10 80], [0 ylim_max
 if SAVEFIGS
     exportfig([PATH 'acados_M' num2str(NM) '_log.pdf'])
 end
+
+calculate_tolerances(logs)

@@ -28,7 +28,7 @@ MPC_COMPILE = 1;            % compile exported code for ACADO solver
 
 NRUNS       = 5;            % run closed-loop simulation NRUNS times and store minimum timings (to minimize OS interference)
 
-SOLVER      = 'acados_qpOASES_e_N2'; % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC', 'dfgm', 'osqp', 'fiordos'
+SOLVER      = 'acados_HPIPM_B0'; % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC', 'dfgm', 'osqp', 'fiordos'
 
 WARMSTART   = 0;            % applicable for qpOASES/qpDUNES
 
@@ -108,7 +108,7 @@ end
 
 
 % extract block size from solver name
-QPCONDENSINGSTEPS = extract_block_size(SOLVER);
+QPCONDENSINGSTEPS = extract_block_size(SOLVER, N);
 
 DifferentialState xEnd(3,1);                           % 3-dimensional position of end point (M+1)
 eval(['DifferentialState x(',num2str(M*3),',1);'])     % 3-dimensional position of masses 1, 2, ..., M
