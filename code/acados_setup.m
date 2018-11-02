@@ -32,21 +32,17 @@ nlp.set_dynamics(ode_ca_fun, struct('integrator', 'rk4', 'step', Ts));
 nlp.set_field('lbu', -1*ones(NU,1));
 nlp.set_field('ubu', +1*ones(NU,1));
 
+% set up state bounds
+% TODO: fix inf producing error and infeasible QPs in acados due to state bounds
+if WALL > -10
+    lbx = -1e6*ones(NX,1);
+    lbx(2:3:3*(M+1)) = WALL;
+    nlp.set_field('lbx', lbx);
+end
+
 % TODO: why not doing this before init does not update constr. online?
 nlp.set_field('lbx', 0, Xref);
 nlp.set_field('ubx', 0, Xref);
-
-lbx = -inf*ones(NX,1);
-lbx(2:3:3*(M+1)) = WALL;
-ubx = inf*ones(NX, 1);
-
-ubx(isinf(ubx)) = 1e6;
-lbx(isinf(lbx)) = -1e6;
-
-for ii = 1:N
-    nlp.set_field('lbx', ii, lbx);
-    nlp.set_field('ubx', ii, ubx);
-end
 
 nlp.set_stage_cost(eye(NX + NU), [Xref; zeros(NU, 1)], W);
 
