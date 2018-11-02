@@ -12,6 +12,9 @@ code/logs/*.mat
 # fiordos
 code/fiordos_controller/*
 
+# acados
+code/_autogen/*
+
 # ACADO
 code/export_MPC/*
 code/export_ref_MPC/*

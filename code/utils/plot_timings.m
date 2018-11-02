@@ -1,4 +1,4 @@
-function [FHANDLE] = plot_timings(logs, FADED, MODE, LOGSCALE, FHANDLE, xlims, ylims)
+function [FHANDLE] = plot_timings(logs, FADED, MODE, LOGSCALE, FHANDLE, xlims, ylims, FULL_RTI_TIMINGS)
 
 % PLOT_LOGS     plot performance of QP solvers as a function of prediction
 %               horizon N.
@@ -14,6 +14,11 @@ function [FHANDLE] = plot_timings(logs, FADED, MODE, LOGSCALE, FHANDLE, xlims, y
 
 
 %% default values for inputs
+
+if nargin < 8
+    % unless comparing full RTI timings against acados, subtract sim time from cpu time
+    FULL_RTI_TIMINGS = false;
+end
 
 if nargin < 7
     ylims = [0 100];
@@ -67,7 +72,7 @@ for ii = 1:nexp
     end
     
     data(kk).x = [data(kk).x logs{ii}.N];
-    cputimings = logs{ii}.cputime - logs{ii}.simtime;
+    cputimings = logs{ii}.cputime - logs{ii}.simtime*(double(~FULL_RTI_TIMINGS));
     data(kk).y = [data(kk).y min(cputimings, [], 2)];
   
 end

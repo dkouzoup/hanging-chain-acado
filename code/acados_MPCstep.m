@@ -20,8 +20,6 @@ x_sol = sol.states();
 u_sol = sol.controls();
 info  = sol.info();
 
-info.status
-
 %% write to output struct
 
 output.x   = horzcat(x_sol{:})';

@@ -1,4 +1,4 @@
-function nlp = acados_setup(NMASS, ode_ca_fun, N, Ts, W, WN, Xref, SOLVER, WARMSTART)
+function nlp = acados_setup(NMASS, ode_ca_fun, WALL, N, Ts, W, WN, Xref, SOLVER, WARMSTART)
 
 % ACADOS_SETUP Create acados RTI solver
 % TODO: write acados commit or add submodule
@@ -36,11 +36,21 @@ nlp.set_field('ubu', +1*ones(NU,1));
 nlp.set_field('lbx', 0, Xref);
 nlp.set_field('ubx', 0, Xref);
 
-% TODO: what's first input?
+lbx = -inf*ones(NX,1);
+lbx(2:3:3*(M+1)) = WALL;
+ubx = inf*ones(NX, 1);
+
+ubx(isinf(ubx)) = 1e6;
+lbx(isinf(lbx)) = -1e6;
+
+for ii = 1:N
+    nlp.set_field('lbx', ii, lbx);
+    nlp.set_field('ubx', ii, ubx);
+end
+
 nlp.set_stage_cost(eye(NX + NU), [Xref; zeros(NU, 1)], W);
 
 nlp.set_terminal_cost(eye(NX), Xref, WN);
-
 
 
 if contains(SOLVER,'qpOASES_N3')
@@ -86,9 +96,6 @@ elseif contains(SOLVER,'HPIPM')
 else
     error('SPECIFIED SOLVER DOES NOT EXIST')
 end
-
-% TODO: remove
-nlp.generate_s_function('test');
 
 end
 

@@ -28,7 +28,7 @@ MPC_COMPILE = 1;            % compile exported code for ACADO solver
 
 NRUNS       = 5;            % run closed-loop simulation NRUNS times and store minimum timings (to minimize OS interference)
 
-SOLVER      = 'acados_qpOASES_e_N2';  % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC', 'dfgm', 'osqp', 'fiordos'
+SOLVER      = 'acados_qpOASES_e_N2'; % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC', 'dfgm', 'osqp', 'fiordos'
 
 WARMSTART   = 0;            % applicable for qpOASES/qpDUNES
 
@@ -42,7 +42,7 @@ Tf          = 5;            % final simulation time [s]
 
 N           = 50;           % prediction horizon
 
-NMASS       = 3;            % number of masses in chain (data available from 3 to 6 masses)
+NMASS       = 4;            % number of masses in chain (data available from 3 to 6 masses)
 
 To          = 5*Ts;         % how many seconds to overwrite uMPC
 
@@ -159,7 +159,7 @@ if contains(SOLVER, 'acados')
         error('casadi-matlab is probably not in your path');
     end
     
-     acados_nlp = acados_setup(NMASS, ode_ca_fun,N, Ts, W, WN, fsolve_ref, SOLVER, WARMSTART);
+     acados_nlp = acados_setup(NMASS, ode_ca_fun, WALL, N, Ts, W, WN, fsolve_ref, SOLVER, WARMSTART);
 end
 
 %% SIMexport
@@ -190,8 +190,13 @@ end
 
 %% MPCexport
 
-USE_EXPLICIT_RK = true;
-NUM_STEPS = 1;
+if contains(SOLVER, 'acados')
+    USE_EXPLICIT_RK = true;
+    NUM_STEPS = 1;
+else
+    USE_EXPLICIT_RK = false;
+    NUM_STEPS = 2;
+end
 
 acadoSet('problemname', 'mpc');
 
@@ -533,10 +538,16 @@ for iRUNS = 1:NRUNS
         % Save the MPC step
         controls_MPC = [controls_MPC; output.u(1,:)];
 
-        % Shift trajectories
-        input.x = [output.x(2:end,:); output.x(end,:)];
-        input.u = [output.u(2:end,:); output.u(end,:)];
-
+        % Optionally shift trajectories
+        if ~contains(SOLVER, 'acados')
+            input.x = [output.x(2:end,:); output.x(end,:)];
+            input.u = [output.u(2:end,:); output.u(end,:)];
+        else
+            % default init. in acados
+            input.x = output.x;
+            input.u = output.u;          
+        end
+        
         % Simulate system
         sim_input.x = state_sim(end,:).';
         sim_input.u = output.u(1,:).';
@@ -564,7 +575,6 @@ for iRUNS = 1:NRUNS
         if VISUAL && iRUNS == 1
             visualize;
         end
-        keyboard
     end
 
     % delete last time instant
