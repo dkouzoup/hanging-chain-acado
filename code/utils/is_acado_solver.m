@@ -1,13 +1,14 @@
 function answer = is_acado_solver(SOLVER)
 
-if contains(SOLVER, 'HPMPC') || contains(SOLVER, 'qpOASES') || ...
-        contains(SOLVER, 'qpDUNES') || contains(SOLVER, 'FORCES')
+answer = false;
+
+if ~contains(SOLVER, 'acados')
     
-    answer = true;
-    
-else
-    
-    answer = false;
+    if contains(SOLVER, 'HPMPC') || contains(SOLVER, 'qpOASES') || ...
+            contains(SOLVER, 'qpDUNES') || contains(SOLVER, 'FORCES')
+        
+        answer = true;
+    end
     
 end
 

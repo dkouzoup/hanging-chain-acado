@@ -28,7 +28,7 @@ MPC_COMPILE = 1;            % compile exported code for ACADO solver
 
 NRUNS       = 5;            % run closed-loop simulation NRUNS times and store minimum timings (to minimize OS interference)
 
-SOLVER      = 'dfgm';   % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC', 'dfgm', 'osqp', 'fiordos'
+SOLVER      = 'acados_qpOASES_e_N2';  % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC', 'dfgm', 'osqp', 'fiordos'
 
 WARMSTART   = 0;            % applicable for qpOASES/qpDUNES
 
@@ -108,21 +108,7 @@ end
 
 
 % extract block size from solver name
-if contains(SOLVER,'qpDUNES')
-    bpos = strfind(SOLVER,'B');
-    QPCONDENSINGSTEPS = str2double(SOLVER(bpos+1:end));
-    if QPCONDENSINGSTEPS ~= 0 &&(QPCONDENSINGSTEPS < 1 || mod(N,QPCONDENSINGSTEPS)~= 0)
-        error('Invalid block size for given horizon length N.')
-    end
-elseif contains(SOLVER,'HPMPC')
-    bpos = strfind(SOLVER,'B');
-    QPCONDENSINGSTEPS = str2double(SOLVER(bpos+1:end));
-    if ~(QPCONDENSINGSTEPS >=0)
-        error('Invalid block size (block size has to be >= 0)')
-    end
-else
-    QPCONDENSINGSTEPS = [];
-end
+QPCONDENSINGSTEPS = extract_block_size(SOLVER);
 
 DifferentialState xEnd(3,1);                           % 3-dimensional position of end point (M+1)
 eval(['DifferentialState x(',num2str(M*3),',1);'])     % 3-dimensional position of masses 1, 2, ..., M
@@ -157,6 +143,25 @@ end
 
 fsolve_ref = [xEnd_ref; fsolve_x; zeros(3*M, 1)];
 
+% build ode as casadi expression for acados
+if contains(SOLVER, 'acados')
+    import casadi.*
+    try
+        x_casadi   = SX.sym('x', 3*M);
+        v_casadi   = SX.sym('v', 3*M);
+        xE_casadi  = SX.sym('xEnd', 3);
+        u_casadi   = SX.sym('u', 3);
+        ode_casadi = SX.zeros(3*M, 1);
+        ode_casadi = chain_dynamics(x_casadi, v_casadi, xE_casadi, L, D, m, M, x0, ode_casadi);
+        ode_casadi = [u_casadi; ode_casadi];
+        ode_ca_fun = Function('ode_fun', {[xE_casadi; x_casadi; v_casadi], u_casadi}, {ode_casadi});
+    catch
+        error('casadi-matlab is probably not in your path');
+    end
+    
+     acados_nlp = acados_setup(NMASS, ode_ca_fun,N, Ts, W, WN, fsolve_ref, SOLVER, WARMSTART);
+end
+
 %% SIMexport
 
 acadoSet('problemname', 'sim');
@@ -185,6 +190,9 @@ end
 
 %% MPCexport
 
+USE_EXPLICIT_RK = true;
+NUM_STEPS = 1;
+
 acadoSet('problemname', 'mpc');
 
 ocp = acado.OCP( 0.0, N*Ts, N );
@@ -202,13 +210,25 @@ ocp.minimizeLSQEndTerm( SN, rfN );
 ocp.subjectTo( WALL <= [x([2:3:end]); xEnd(2)]); % state constraint on positions
 ocp.subjectTo( -1 <= u <= 1 ); % bounds on controls
 
-ocp.setLinearInput(A1,B1);
-ocp.setModel(ode);
+if USE_EXPLICIT_RK
+    ocp.setModel([u; ode_rhs(1:3*M); ode_rhs(3*M+1:2*3*M)]);
+else
+    ocp.setLinearInput(A1,B1);
+    ocp.setModel(ode);
+end
 
 mpc = acado.OCPexport( ocp );
 
 mpc.set( 'HESSIAN_APPROXIMATION',       'GAUSS_NEWTON'       );
 mpc.set( 'DISCRETIZATION_TYPE',         'MULTIPLE_SHOOTING'  );
+
+if USE_EXPLICIT_RK
+    mpc.set( 'INTEGRATOR_TYPE',             'INT_RK4'        );
+else
+    mpc.set( 'INTEGRATOR_TYPE',             'INT_IRK_GL2'    );
+end
+
+mpc.set( 'NUM_INTEGRATOR_STEPS',        NUM_STEPS*N          );
 
 if strcmp(SOLVER,'qpOASES_N3')
 
@@ -294,13 +314,10 @@ elseif contains(SOLVER,'HPMPC')
     end
 
 else
-    if ~strcmp(SOLVER, 'dfgm') && ~strcmp(SOLVER, 'osqp') && ~strcmp(SOLVER, 'fiordos')
+    if ~strcmp(SOLVER, 'dfgm') && ~strcmp(SOLVER, 'osqp') && ~strcmp(SOLVER, 'fiordos') && ~contains(SOLVER, 'acados')
         error('SPECIFIED SOLVER DOES NOT EXIST')
     end
 end
-
-mpc.set( 'INTEGRATOR_TYPE',             'INT_IRK_GL2'        );
-mpc.set( 'NUM_INTEGRATOR_STEPS',        2*N                  );
 
 mpc.set( 'MAX_NUM_QP_ITERATIONS', 1000 );
 mpc.set( 'PRINTLEVEL', 'LOW' );
@@ -443,6 +460,12 @@ for iRUNS = 1:NRUNS
                 output.info.nIterations = output.info.nIterations;
             end
             
+        elseif contains(SOLVER, 'acados')
+            
+            input.nlp  = acados_nlp;
+            input.time = time(end);
+            output = acados_MPCstep(input);
+
         else
             switch SOLVER
                 
@@ -541,7 +564,7 @@ for iRUNS = 1:NRUNS
         if VISUAL && iRUNS == 1
             visualize;
         end
-
+        keyboard
     end
 
     % delete last time instant
