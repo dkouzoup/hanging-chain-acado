@@ -240,17 +240,14 @@ void myblas_dgemv (const int Order, const int TransA,
 }
 
 // Cholsesky factorization (Code taken from qpOASES_e 3.0)
-//void myblas_dpotrf_(const char *uplow, const int *_n, real_t *a,
-//		    const int *_lda, int *info)
-void myblas_dpotrf_(char *uplow, int *_n, real_t *a,
-		    int *_lda, int *info) // removed const to suppress warnings
+void myblas_dpotrf_(const char *uplow, const int *_n, real_t *a,
+		    const int *_lda, int *info)
 {
-#ifdef USE_EXTERNAL_LIBRARIES
-
-  dpotrf_ (uplow, _n, a, _lda, info);
+#if 0 //def USE_EXTERNAL_LIBRARIES
+  // TODO: this seg faults on linux (not on mac), disabled
+  dpotrf_(uplow, _n, a, _lda, info);
   
-#else
-  
+#else 
   real_t sum;
   int i, j, k;
   int n = (int)(*_n);
