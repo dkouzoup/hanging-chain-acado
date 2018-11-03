@@ -15,15 +15,15 @@
 #endif	/* __USE_SINGLE_PRECISION__ */
 #endif
   
-#ifdef USE_EXTERNAL_LIBRARIES
-#ifdef __APPLE__
-#include <Accelerate/Accelerate.h>
-#else
-#include <cblas.h>
-extern void dpotrf_( const char* uplo, const int* n, real_t* a, const int* lda, 
-		     int *info );
-#endif
-#endif
+// #ifdef USE_EXTERNAL_LIBRARIES
+// #ifdef __APPLE__
+// #include <Accelerate/Accelerate.h>
+// #else
+// #include <cblas.h>
+// extern void dpotrf_( const char* uplo, const int* n, real_t* a, const int* lda, 
+// 		     int *info );
+// #endif
+// #endif
 
 /* Function declarations */
 

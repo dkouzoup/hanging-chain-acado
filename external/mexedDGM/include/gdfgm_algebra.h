@@ -43,8 +43,8 @@ void myblas_daxpy(const int N, const real_t alpha, const real_t *X, const int in
 
 real_t myblas_dnrm2(const int N, const real_t *X, const int incX);
 
-//void myblas_dpotrf_(const char *uplow, const int *_n, real_t *a, const int *_lda, int *info);
-void myblas_dpotrf_(char *uplow, int *_n, real_t *a, int *_lda, int *info);
+void myblas_dpotrf_(const char *uplow, const int *_n, real_t *a, const int *_lda, int *info);
+// void myblas_dpotrf_(char *uplow, int *_n, real_t *a, int *_lda, int *info);
 
 void myblas_dgemm(const int Order, const int TransA, const int TransB, const int M, 
 		  const int N, const int K, const real_t alpha, const real_t *A, 
