@@ -30,7 +30,7 @@ set_of_N       = 10:10:80; % fiordos crashses for N > 50 (and NMASS = 3)
 
 sim_opts.WARMSTART   = 0;
 sim_opts.NMASS       = 4;
-sim_opts.NRUNS       = 1;
+sim_opts.NRUNS       = 5;
 sim_opts.MPC_EXPORT  = 1;
 sim_opts.MPC_COMPILE = 1;
 sim_opts.SIM_EXPORT  = 1;
@@ -47,6 +47,8 @@ for jj = 1:length(set_of_solvers)
     sim_opts.SOLVER = set_of_solvers{jj};
 
     for ii = 1:length(set_of_N)
+
+        clear mex % for DFGM
 
         if set_of_N(ii) > 50 && strcmp(set_of_solvers{jj}, 'fiordos')
             break

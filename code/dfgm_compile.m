@@ -17,9 +17,9 @@ end
 
 make
   
-txt = [tmp '/mexedDGM.mexmaci64'];
+txt = [tmp '/mexedDGM.' mexext];
 
-copyfile('gdfgm_mex.mexmaci64', txt);
+copyfile(['gdfgm_mex.' mexext], txt);
 
 cd(tmp)
 

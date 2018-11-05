@@ -69,7 +69,7 @@ ub = [ub; qp.ubx{N+1}];
 OPT.maximumIterations       = opts.maxit;
 OPT.tolerance               = opts.tol;
 OPT.calculateAllMultipliers = 1; % or 1 to calculate KKT's
-OPT.useExternalLibraries    = 1; % CONTROLLED AT COMPILE TIME! LEAVE TO 1, THERE IS A BUG FOR 0!
+OPT.useExternalLibraries    = opts.useExternalLibraries; % CONTROLLED AT COMPILE TIME!
 OPT.warmStart               = double(opts.warmstart > 0);
 
 if opts.criterion == 1

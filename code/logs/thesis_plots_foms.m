@@ -3,10 +3,10 @@ clear all; close all; clc
 
 PATH = '~/Documents/Repositories/GIT/thesis/image/qpstory/';
 
-NM  = 5;
+NM  = 4;
 TOL = 'low';
 
-OSQP_WITH_SETUP = true
+OSQP_WITH_SETUP = false;
 
 if OSQP_WITH_SETUP
     load(['logs/osqp_with_setup_M' num2str(NM) '_' TOL '.mat']);
@@ -42,7 +42,7 @@ end
 %     end
 % end
 
-SAVEFIGS = 1;
+SAVEFIGS = 0;
     
 if ~exist('NM', 'var')
     NM = logs{1}.Nmass;
