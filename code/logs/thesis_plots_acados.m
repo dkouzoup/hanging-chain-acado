@@ -3,7 +3,7 @@ clear all; close all; clc
 
 PATH = '~/Documents/Repositories/GIT/thesis/image/qpstory/';
 
-NM  = 5;
+NM  = 4;
 
 load(['acados_M' num2str(NM) '.mat']);
 
@@ -43,18 +43,20 @@ for ii = 1:length(logs)
     end
 end
 
+xmax = 80;
+
 % do NOT subtract min time from ACADO timings
 FULL_RTI_TIMINGS = true;
 
-fhandle = plot_timings(logs(find(acados)), false, 'max', false, [], [10 80], [0 ylim_max], FULL_RTI_TIMINGS);
-plot_timings(logs(find(acado)), true, 'max', false, fhandle, [10 80], [0 ylim_max], FULL_RTI_TIMINGS);
+fhandle = plot_timings(logs(find(acados)), false, 'max', false, [], [10 xmax], [0 ylim_max], FULL_RTI_TIMINGS);
+plot_timings(logs(find(acado)), true, 'max', false, fhandle, [10 xmax], [0 ylim_max], FULL_RTI_TIMINGS);
 
 if SAVEFIGS
     exportfig([PATH 'acados_M' num2str(NM) '.pdf'])
 end
 
-fhandle = plot_timings(logs(find(acados)), false, 'max', true, [], [10 80], [0 ylim_max], FULL_RTI_TIMINGS);
-plot_timings(logs(find(acado)), true, 'max', true, fhandle, [10 80], [0 ylim_max], FULL_RTI_TIMINGS);
+fhandle = plot_timings(logs(find(acados)), false, 'max', true, [], [10 xmax], [0 ylim_max], FULL_RTI_TIMINGS);
+plot_timings(logs(find(acado)), true, 'max', true, fhandle, [10 xmax], [0 ylim_max], FULL_RTI_TIMINGS);
 
 if SAVEFIGS
     exportfig([PATH 'acados_M' num2str(NM) '_log.pdf'])
