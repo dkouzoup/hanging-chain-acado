@@ -44,9 +44,12 @@ SOLVER = 'HPMPC';
 sim_opts.NRUNS       = 5;
 sim_opts.MPC_EXPORT  = 1;
 sim_opts.MPC_COMPILE = 1;
-sim_opts.N           = 80;
+sim_opts.N           = 60;
 
-set_of_M  = [0 2:14 15:5:40];
+sim_opts.CHECK_AGAINST_REF_SOL = 0;
+sim_opts.SOL_TOL = 1e-5;
+
+set_of_M  = [0 2:14 15:5:floor(sim_opts.N/2)];
 set_of_NM = [3 4 5];
 
 if strcmp(SOLVER, 'qpDUNES')
@@ -124,5 +127,29 @@ t = t(2:end-1);     % remove [ ]
 t(t == ' ') = '_';  % substitute spaces with underscore
 
 save(['logs' filesep 'data_' t], 'logs');
+
+if sim_opts.CHECK_AGAINST_REF_SOL
+    max_val_err = 0;
+    for i = 1:length(set_of_NM)
+        for j = 1:length(logs)
+            err = max(logs{i,j}.val_accuracy);
+            if err > max_val_err
+                max_val_err = err;
+            end
+        end
+    end
+    display(['max val err = ', num2str(max_val_err)])
+
+    max_sol_err = 0;
+    for i = 1:length(set_of_NM)
+        for j = 1:length(logs)
+            err = max(logs{i,j}.sol_accuracy);
+            if err > max_sol_err
+                max_sol_err = err;
+            end
+        end
+    end
+    display(['max sol err = ', num2str(max_sol_err)])
+end
 
 delete_temp_files();

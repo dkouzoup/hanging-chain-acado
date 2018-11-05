@@ -17,6 +17,8 @@ if nargin < 5
     xlims = [10 100];
 end
 
+FS = 24;
+
 %% default values for inputs
 
 if nargin < 4 || isempty(FHANDLE)
@@ -78,7 +80,7 @@ if ~LOGSCALE
     end
     grid on
     
-    set_up_plot(data, false);
+    set_up_plot(data, false, FS);
     xlim(xlims)
     ylim(ylims)
 
@@ -92,10 +94,10 @@ else
     end
     grid on
     
-    set_up_plot(data, true);
+    set_up_plot(data, true, FS);
     xlim(xlims)
     ylim(ylims)
-    % title('Worst case CPU time in closed-loop','interpreter','latex', 'fontsize',20)
+    % title('Worst case CPU time in closed-loop','interpreter','latex', 'fontsize', FS)
 end
 
 
@@ -103,11 +105,11 @@ FHANDLE.Position = [100 300 600 500];
 
 end
 
-function set_up_plot(data, LOGPLOT)
+function set_up_plot(data, LOGPLOT, FS)
 
-set(gca, 'fontsize',20);
-xlabel('Prediction horizon $N$', 'interpreter','latex', 'fontsize',20);
-ylabel('CPU time $(\mathrm{ms})$', 'interpreter','latex', 'fontsize',20);
+set(gca, 'fontsize',FS);
+xlabel('Prediction horizon $N$', 'interpreter','latex', 'fontsize',FS);
+ylabel('CPU time $(\mathrm{ms})$', 'interpreter','latex', 'fontsize',FS);
 
 set(gca,'TickLabelInterpreter','latex')
 
