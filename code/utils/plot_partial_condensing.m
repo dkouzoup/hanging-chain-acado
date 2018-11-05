@@ -5,6 +5,7 @@ function FHANDLE = plot_partial_condensing(logs)
 solver = logs{1}.solver(1:strfind(logs{1}.solver,'_')-1);
 NMASS  = size(logs, 1);
 BS     = size(logs,2);
+FS     = 24;
 
 CPUTIMES  = zeros(NMASS, BS);
 BLOCKSIZE = zeros(NMASS, BS);
@@ -35,11 +36,11 @@ for ii = 1:NMASS
 end
 grid on
 
-set(gca, 'fontsize',20);
-xlabel('Block size $M$', 'interpreter','latex', 'fontsize',20);
-ylabel('Speedup', 'interpreter','latex', 'fontsize',20);
+set(gca, 'fontsize',FS);
+xlabel('Block size $M$', 'interpreter','latex', 'fontsize',FS);
+ylabel('Speedup', 'interpreter','latex', 'fontsize',FS);
 set(gca,'TickLabelInterpreter','latex')
-title(['Partial condensing with \texttt{' solver '}'],'interpreter','latex', 'fontsize',20);
+title(['Partial condensing with \texttt{' solver '}'],'interpreter','latex', 'fontsize',FS);
 l = legend(legends);
 l.Interpreter = 'latex';
 l.Location = 'northeast';

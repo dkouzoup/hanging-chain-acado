@@ -22,7 +22,7 @@ initialize(USE_ACADO_DEV)
 % 'HPMPC_BX'    HPMPC with (its own) partial condensing and block size X
 % 'FORCES'      FORCES QP solver (if license is available)
 
-% set_of_solvers = {'qpOASES_N3', 'qpOASES_N2', 'qpDUNES_B0', 'HPMPC_B0'};
+% set_of_solvers = {'qpOASES_N3', 'qpOASES_N2', 'qpDUNES_B0', 'HPMPC_B0', 'qpDUNES_B10', 'HPMPC_B10'};
 % set_of_N       = 10:10:100;
 
 % set_of_solvers = {'dfgm', 'osqp', 'qpOASES_N2', 'HPMPC_B0'}; 
@@ -53,14 +53,14 @@ end
 logs = {};
 
 for jj = 1:length(set_of_solvers)
-    
+
     sim_opts.VISUAL = 1;
     sim_opts.SOLVER = set_of_solvers{jj};
 
     for ii = 1:length(set_of_N)
-        
+
         clear mex % for DFGM
-        
+
         if set_of_N(ii) > 50 && strcmp(set_of_solvers{jj}, 'fiordos')
             break
         end
@@ -82,12 +82,12 @@ end
 %% Sanity checks
 
 for ii = 1:length(logs)
-    
+
     if ~check_consistency(logs{ii}.iters)
         warning(['inconsistent iterations between runs for log{' num2str(ii) '} with ' logs{ii}.solver])
         keyboard
     end
-    
+
 end
 
 %% Save results and clean up

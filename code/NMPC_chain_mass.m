@@ -88,9 +88,9 @@ WN = blkdiag(25*eye(3), 25*eye(3*M), 1*eye(3*M));
 % solver-specific options
 % TODO move ACADO opts also here
 switch SOLVER
-    
+
     case 'fiordos'
-        
+
         opts.approach  = 'dual'; % 'dual' or 'primal-dual'
         opts.tol       = 1e-2;
         opts.maxit     = 100000;
@@ -98,15 +98,15 @@ switch SOLVER
         opts.compile   = MPC_COMPILE;
         opts.infval    = 1e8;
         opts.warmstart = 1; % 0: no warmstart, 1: same solution
-        
+
     case 'dfgm'
-        
+
         opts.warmstart = 2; % 0: no warmstart, 1: same solution, 2: shifted solution
         opts.maxit     = 100000;
         opts.tol       = 1e-2;
         opts.criterion = 1; % 1: solver's own criterion, 2: compare with acado solution (not working yet properly)
         opts.useExternalLibraries = 0;
-    
+
     case 'osqp'
         % leave empty for default
         opts.warmstart       = 1;
@@ -290,11 +290,11 @@ elseif contains(SOLVER,'qpDUNES') && QPCONDENSINGSTEPS > 1
         warning('qpDUNES with cold start not implemented in ACADO');
         keyboard
     end
-    
+
 elseif strcmp(SOLVER,'FORCES_BC')
-    
+
     error('interface of FORCES with block condensing broken');
-    
+
     if QPCONDENSINGSTEPS == 1
         mpc.set( 'SPARSE_QP_SOLUTION',  'SPARSE_SOLVER');
     else
@@ -347,7 +347,7 @@ end
 if MPC_COMPILE
     if is_acado_solver(SOLVER)
         cd export_MPC
-        
+
         % add solver directory in export_MPC folder
         if contains(SOLVER,'qpDUNES')
             if QPCONDENSINGSTEPS == 0
@@ -369,14 +369,14 @@ if MPC_COMPILE
             waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'blasfeo'], 'blasfeo'));
             waitfor(copyfile(['..' filesep '..' filesep 'external' filesep 'hpmpc'], 'hpmpc'));
         end
-        
-        
+
+
         if contains(SOLVER, 'FORCES')
             % needed to give time to overwrite things
             % keyboard
             pause(10)
         end
-        
+
         make_acado_solver('../acado_MPCstep')
         cd ..
     end
@@ -390,11 +390,11 @@ end
 
 
 if strcmp(SOLVER, 'fiordos')
-   fiordos_code_generate(N, NX, NU, W, WN, opts); 
+   fiordos_code_generate(N, NX, NU, W, WN, opts);
 end
 
 if strcmp(SOLVER, 'dfgm')
-   dfgm_compile(N, NX, NU, opts); 
+   dfgm_compile(N, NX, NU, opts);
 end
 
 %% Closed loop simulations
@@ -431,7 +431,7 @@ for iRUNS = 1:NRUNS
         input.LBU  = -ones(NU,1);
         input.UBU  = ones(NU,1);
     end
-    
+
     disp('------------------------------------------------------------------')
     disp('               Simulation Loop'                                    )
     disp('------------------------------------------------------------------')
@@ -457,9 +457,9 @@ for iRUNS = 1:NRUNS
         % RTI step
         % TODO: merge to one call using function pointers and wrapping acado function
         if is_acado_solver(SOLVER)
-            
+
             output = acado_MPCstep(input);
-            
+
             % field name changed in future ACADO versions
             if isfield(output.info, 'QP_iter')
                 output.info.nIterations = output.info.QP_iter;
@@ -475,7 +475,7 @@ for iRUNS = 1:NRUNS
 
         else
             switch SOLVER
-                
+
                 case 'dfgm'
                     output = dfgm_MPCstep(input, opts, time(end));
                 case 'fiordos'
@@ -486,13 +486,13 @@ for iRUNS = 1:NRUNS
             end
         end
         % TODO: check also slack_res
-        
+
         % TODO: correct objVal of non acado solvers with constant term
         if CHECK_AGAINST_REF_SOL
             ref_output = acado_ref_MPCstep(input);
             sol_err    = max(norm(output.x(:) - ref_output.x(:), Inf), norm(output.u(:) - ref_output.u(:), Inf));
             val_err    = abs(output.info.objValue - ref_output.info.objValue)/max(1, ref_output.info.objValue);
-            
+
             if sol_err > SOL_TOL || val_err > SOL_TOL
                 warning(['failed to meet accuracy of ', num2str(SOL_TOL), '( sol_err = ', ...
                     num2str(sol_err), ', val_err = ', num2str(val_err), ')' ])
@@ -519,7 +519,7 @@ for iRUNS = 1:NRUNS
         if iRUNS == 1
             logged_outputs{iter+1} = output;
         end
-        
+
         solve_qp_times(iter+1, iRUNS) = output.info.cpuTime;
         solve_qp_iters(iter+1, iRUNS) = output.info.nIterations;
 
@@ -528,7 +528,7 @@ for iRUNS = 1:NRUNS
         else
             simulate_times(iter+1, iRUNS) = 0;
         end
-        
+
         if isfield(output.info, 'primal_res')
             primal_feas(iter+1, iRUNS) = output.info.primal_res;
             dual_feas(iter+1, iRUNS)   = output.info.dual_res;
@@ -536,9 +536,9 @@ for iRUNS = 1:NRUNS
             primal_feas(iter+1, iRUNS) = nan;
             dual_feas(iter+1, iRUNS)   = nan;
         end
-        
+
         fprintf('%s:\t\t %d it\t %f ms\n', SOLVER, output.info.nIterations, 1000*output.info.cpuTime);
-        
+
         % Save the MPC step
         controls_MPC = [controls_MPC; output.u(1,:)];
 
@@ -617,15 +617,15 @@ if CHECK_AGAINST_REF_SOL
 end
 
 if ~BATCH
-    
+
     if CHECK_AGAINST_REF_SOL
         disp(' ');
         disp(['MAX ERROR IN SOLUTION: ' num2str(max(max(logged_data.ref_sol_err)))]);
     end
-    
+
     disp('ERRORS:')
     [max(max(primal_feas)) max(max(dual_feas)) max(max(ref_sol_err))]
-    
+
     % consistency checks
     if ~check_consistency(solve_qp_iters)
         warning('inconsistent iterations between runs')
