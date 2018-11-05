@@ -25,8 +25,12 @@ initialize(USE_ACADO_DEV)
 % set_of_solvers = {'qpOASES_N3', 'qpOASES_N2', 'qpDUNES_B0', 'HPMPC_B0'};
 % set_of_N       = 10:10:100;
 
-set_of_solvers   = {'dfgm', 'osqp', 'qpOASES_N2', 'HPMPC_B0'}; 
-set_of_N       = 10:10:80; % fiordos crashses for N > 50 (and NMASS = 3)
+% set_of_solvers = {'dfgm', 'osqp', 'qpOASES_N2', 'HPMPC_B0'}; 
+set_of_solvers = {'dfgm', 'osqp'}; 
+set_of_N       = 20:20:80; % fiordos crashses for N > 50 (and NMASS = 3)
+
+% set_of_solvers = {'acados_qpOASES_e_N2', 'acados_HPIPM_B10', 'acados_HPIPM_B10', 'qpOASES_e_N2', 'HPMPC_B10'}; 
+% set_of_N       = 10:10:80; 
 
 sim_opts.WARMSTART   = 0;
 sim_opts.NMASS       = 4;
@@ -36,6 +40,13 @@ sim_opts.MPC_COMPILE = 1;
 sim_opts.SIM_EXPORT  = 1;
 sim_opts.SIM_COMPILE = 1;
 sim_opts.CHECK_AGAINST_REF_SOL = 1;
+
+sim_opts.ACADOS_BENCHMARK = false;
+for solver = set_of_solvers
+   if contains(solver, 'acados')
+       sim_opts.ACADOS_BENCHMARK = true;
+   end
+end
 
 %% Run simulations
 
