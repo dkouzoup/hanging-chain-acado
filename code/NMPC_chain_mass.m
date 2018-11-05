@@ -53,6 +53,16 @@ CHECK_AGAINST_REF_SOL = 1;  % if 1, exports and compiles reference solver (qpOAS
 SOL_TOL = 1e-6;             % maximum accepted 2-norm of the deviation of the solution from the reference solution
                             % (only used if CHECK_AGAINST_REF_SOL = 1).
 
+ACADOS_BENCHMARK = true;    % change some settings to match what is currently supported in acados (ERK, no shifting, RTI timings instead of QP timings)
+
+if ACADOS_BENCHMARK
+    USE_EXPLICIT_RK = true; % currently only ERK supported in acados-matlab
+    NUM_STEPS       = 2;    % NEEDS TO BE HARDCODED IN ACADOS DEFAULT OPTS ATM (one step - the default option - becomes infeasible in closed loop)
+else
+    USE_EXPLICIT_RK = false;
+    NUM_STEPS       = 2;
+end
+
 %% Load simulation options and overwrite local ones
 
 if exist('sim_opts','var')
@@ -189,14 +199,6 @@ if SIM_COMPILE
 end
 
 %% MPCexport
-
-if contains(SOLVER, 'acados')
-    USE_EXPLICIT_RK = true;
-    NUM_STEPS = 1;
-else
-    USE_EXPLICIT_RK = false;
-    NUM_STEPS = 2;
-end
 
 acadoSet('problemname', 'mpc');
 
@@ -498,6 +500,8 @@ for iRUNS = 1:NRUNS
 
             ref_sol_err(iter+1, iRUNS) = sol_err;
             ref_val_err(iter+1, iRUNS) = val_err;
+            
+            % save(['ws_' SOLVER '_N' num2str(length(time))], 'input', 'output', 'ref_output', 'sol_err');
         end
 
         if output.info.status ~= 1 &&  output.info.status ~= 0
@@ -539,7 +543,7 @@ for iRUNS = 1:NRUNS
         controls_MPC = [controls_MPC; output.u(1,:)];
 
         % Optionally shift trajectories
-        if ~contains(SOLVER, 'acados')
+        if ~ACADOS_BENCHMARK
             input.x = [output.x(2:end,:); output.x(end,:)];
             input.u = [output.u(2:end,:); output.u(end,:)];
         else

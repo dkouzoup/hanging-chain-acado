@@ -37,12 +37,14 @@ nlp.set_field('ubu', +1*ones(NU,1));
 if WALL > -10
     lbx = -1e6*ones(NX,1);
     lbx(2:3:3*(M+1)) = WALL;
+    ubx = +1e6*ones(NX,1);
     nlp.set_field('lbx', lbx);
+    nlp.set_field('ubx', ubx);
 end
 
-% TODO: why not doing this before init does not update constr. online?
-nlp.set_field('lbx', 0, Xref);
-nlp.set_field('ubx', 0, Xref);
+% TODO: why not doing this before init (when no other state bounds) does not update constr. online?
+% nlp.set_field('lbx', 0, Xref);
+% nlp.set_field('ubx', 0, Xref);
 
 nlp.set_stage_cost(eye(NX + NU), [Xref; zeros(NU, 1)], W);
 
