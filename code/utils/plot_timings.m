@@ -157,15 +157,15 @@ end
 
 function marker = set_up_marker(solver)
 
-if strcmp(solver, 'qpOASES_N2')
+if contains(solver, 'qpOASES_N2') || contains(solver, 'qpOASES_e_N2')
     
     marker = '^';
     
-elseif strcmp(solver, 'qpOASES_N3')
+elseif contains(solver, 'qpOASES_N3') || contains(solver, 'qpOASES_e_N3')
     
     marker = 'v';
 
-elseif strcmp(solver, 'FORCES')
+elseif strcmp(solver, 'FORCES') || contains(solver, 'HPIPM')
     
     marker = 's';
     
