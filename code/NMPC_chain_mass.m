@@ -168,7 +168,7 @@ if contains(SOLVER, 'acados')
     catch
         error('casadi-matlab is probably not in your path');
     end
-    
+
      acados_nlp = acados_setup(NMASS, ode_ca_fun, WALL, N, Ts, W, WN, fsolve_ref, SOLVER, WARMSTART);
 end
 
@@ -420,17 +420,15 @@ for iRUNS = 1:NRUNS
     Uref = zeros(N,NU);
 
     % initialize input struct
-    input.x  = repmat(X0.',N+1,1);
-    input.u  = Uref;
-    input.y  = [Xref(1:N,:) Uref];
-    input.yN = fsolve_ref.';
-    input.W  = W;
-    input.WN = WN;
-    if ~is_acado_solver(SOLVER)
-        input.WALL = WALL;
-        input.LBU  = -ones(NU,1);
-        input.UBU  = ones(NU,1);
-    end
+    input.x    = repmat(X0.',N+1,1);
+    input.u    = Uref;
+    input.y    = [Xref(1:N,:) Uref];
+    input.yN   = fsolve_ref.';
+    input.W    = W;
+    input.WN   = WN;
+    input.WALL = WALL;
+    input.LBU  = -ones(NU,1);
+    input.UBU  = ones(NU,1);
 
     disp('------------------------------------------------------------------')
     disp('               Simulation Loop'                                    )
@@ -466,14 +464,19 @@ for iRUNS = 1:NRUNS
             else
                 output.info.nIterations = output.info.nIterations;
             end
-            
+
+            if contains(SOLVER, 'HPMPC')
+                [output.info.primal_res, output.info.dual_res] = check_solution_accuracy_acado_hpmpc(input, output);
+            end
+
         elseif contains(SOLVER, 'acados')
-            
+
             input.nlp  = acados_nlp;
             input.time = time(end);
             output = acados_MPCstep(input);
 
         else
+
             switch SOLVER
 
                 case 'dfgm'
@@ -500,7 +503,7 @@ for iRUNS = 1:NRUNS
 
             ref_sol_err(iter+1, iRUNS) = sol_err;
             ref_val_err(iter+1, iRUNS) = val_err;
-            
+
             % save(['ws_' SOLVER '_N' num2str(length(time))], 'input', 'output', 'ref_output', 'sol_err');
         end
 
@@ -549,9 +552,9 @@ for iRUNS = 1:NRUNS
         else
             % default init. in acados
             input.x = output.x;
-            input.u = output.u;          
+            input.u = output.u;
         end
-        
+
         % Simulate system
         sim_input.x = state_sim(end,:).';
         sim_input.u = output.u(1,:).';
