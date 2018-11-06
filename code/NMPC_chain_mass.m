@@ -28,7 +28,7 @@ MPC_COMPILE = 1;            % compile exported code for ACADO solver
 
 NRUNS       = 5;            % run closed-loop simulation NRUNS times and store minimum timings (to minimize OS interference)
 
-SOLVER      = 'acados_HPIPM_B0'; % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC', 'dfgm', 'osqp', 'fiordos'
+SOLVER      = 'HPMPC_B10'; % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC', 'dfgm', 'osqp', 'fiordos'
 
 WARMSTART   = 0;            % applicable for qpOASES/qpDUNES
 
@@ -177,10 +177,16 @@ end
 acadoSet('problemname', 'sim');
 
 sim = acado.SIMexport(Ts);
-sim.setLinearInput(A1, B1);
-sim.setModel(ode);
-sim.set( 'INTEGRATOR_TYPE',        'INT_IRK_GL2' );
-sim.set( 'NUM_INTEGRATOR_STEPS',        2        );
+
+if USE_EXPLICIT_RK
+    sim.setModel([u; ode_rhs(1:3*M); ode_rhs(3*M+1:2*3*M)]);
+    sim.set( 'INTEGRATOR_TYPE',            'INT_RK4' );
+else
+    sim.setLinearInput(A1, B1);
+    sim.setModel(ode);
+    sim.set( 'INTEGRATOR_TYPE',        'INT_IRK_GL2' );
+end
+sim.set( 'NUM_INTEGRATOR_STEPS',        NUM_STEPS    );
 
 if SIM_EXPORT
     sim.exportCode( 'export_SIM' );
@@ -191,7 +197,7 @@ if SIM_COMPILE
     cd export_SIM
     sim_path = '../';
     make_acado_integrator([sim_path sim_name])
-    if ~is_acado_solver(SOLVER)
+    if ~is_acado_solver(SOLVER) || contains(SOLVER, 'HPMPC')
         % NOTE: using the same integrator for simulation gives somehow wrong results
         make_acado_integrator([sim_path sim_name '_tmp'])
     end
