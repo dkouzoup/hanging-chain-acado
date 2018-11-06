@@ -28,7 +28,7 @@ MPC_COMPILE = 1;            % compile exported code for ACADO solver
 
 NRUNS       = 5;            % run closed-loop simulation NRUNS times and store minimum timings (to minimize OS interference)
 
-SOLVER      = 'dfgm';   % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC', 'dfgm', 'osqp', 'fiordos'
+SOLVER      = 'HPMPC_B10';  % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC', 'dfgm', 'osqp', 'fiordos'
 
 WARMSTART   = 0;            % applicable for qpOASES/qpDUNES
 
@@ -396,17 +396,15 @@ for iRUNS = 1:NRUNS
     Uref = zeros(N,NU);
 
     % initialize input struct
-    input.x  = repmat(X0.',N+1,1);
-    input.u  = Uref;
-    input.y  = [Xref(1:N,:) Uref];
-    input.yN = fsolve_ref.';
-    input.W  = W;
-    input.WN = WN;
-    if ~is_acado_solver(SOLVER)
-        input.WALL = WALL;
-        input.LBU  = -ones(NU,1);
-        input.UBU  = ones(NU,1);
-    end
+    input.x    = repmat(X0.',N+1,1);
+    input.u    = Uref;
+    input.y    = [Xref(1:N,:) Uref];
+    input.yN   = fsolve_ref.';
+    input.W    = W;
+    input.WN   = WN;
+    input.WALL = WALL;
+    input.LBU  = -ones(NU,1);
+    input.UBU  = ones(NU,1);
 
     disp('------------------------------------------------------------------')
     disp('               Simulation Loop'                                    )
@@ -441,6 +439,9 @@ for iRUNS = 1:NRUNS
                 output.info.nIterations = output.info.QP_iter;
             else
                 output.info.nIterations = output.info.nIterations;
+            end
+            if contains(SOLVER, 'HPMPC')
+               [output.info.primal_res, output.info.dual_res] = check_solution_accuracy_acado_hpmpc(input, output);
             end
 
         else
