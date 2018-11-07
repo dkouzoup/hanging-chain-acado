@@ -55,13 +55,6 @@ SOL_TOL = 1e-6;             % maximum accepted 2-norm of the deviation of the so
 
 ACADOS_BENCHMARK = true;    % change some settings to match what is currently supported in acados (ERK, no shifting, RTI timings instead of QP timings)
 
-if ACADOS_BENCHMARK
-    USE_EXPLICIT_RK = true; % currently only ERK supported in acados-matlab
-    NUM_STEPS       = 2;    % NEEDS TO BE HARDCODED IN ACADOS DEFAULT OPTS ATM (one step - the default option - becomes infeasible in closed loop)
-else
-    USE_EXPLICIT_RK = false;
-    NUM_STEPS       = 2;
-end
 
 %% Load simulation options and overwrite local ones
 
@@ -73,6 +66,14 @@ if exist('sim_opts','var')
 end
 
 %% Initialization
+
+if ACADOS_BENCHMARK
+    USE_EXPLICIT_RK = true; % currently only ERK supported in acados-matlab
+    NUM_STEPS       = 2;    % NEEDS TO BE HARDCODED IN ACADOS DEFAULT OPTS ATM (one step - the default option - becomes infeasible in closed loop)
+else
+    USE_EXPLICIT_RK = false;
+    NUM_STEPS       = 2;
+end
 
 % dimensions
 M  = NMASS - 2;     % number of intermediate masses
