@@ -33,8 +33,8 @@ set_of_N       = 20:20:80; % fiordos crashses for N > 50 (and NMASS = 3)
 % set_of_N       = 10:10:80; 
 
 sim_opts.WARMSTART   = 0;
-sim_opts.NMASS       = 4;
-sim_opts.NRUNS       = 5;
+sim_opts.NMASS       = 3;
+sim_opts.NRUNS       = 8;
 sim_opts.MPC_EXPORT  = 1;
 sim_opts.MPC_COMPILE = 1;
 sim_opts.SIM_EXPORT  = 1;

@@ -1,26 +1,19 @@
 
+%% load mat files
+
 clear all; close all; clc
 
 PATH = '~/Documents/Repositories/GIT/thesis/image/qpstory/';
 
-NM  = 4;
-TOL = 'low';
+NM  = 3;
 
-OSQP_WITH_SETUP = false;
+OSQP_WITH_SETUP = true;
 
-if OSQP_WITH_SETUP
-    load(['logs/osqp_with_setup_M' num2str(NM) '_' TOL '.mat']);
-    logs_osqp = logs;
+if ~OSQP_WITH_SETUP
+    error('timings not available');
 end
 
-load(['logs/foms_M' num2str(NM) '_' TOL '.mat']);
-
-if OSQP_WITH_SETUP
-    if ~strcmp(logs{1}.solver, 'osqp')
-        error('assuming osqp is the first solver')
-    end
-    logs(1:length(logs_osqp)) = logs_osqp;
-end
+load(['logs/foms_M' num2str(NM) '.mat']);
 
 % TOL3 ERR
 % 0.0239
@@ -30,17 +23,7 @@ end
 % 0.0020
 % 0.0016
     
-%%
-
-% for ii = 1:length(logs)
-%     if ~isfield(logs{ii}, 'secondary_solver')
-%         logs{ii}.secondary_solver = 'none';
-%     end
-%     if strcmp(logs{ii}.secondary_solver, 'none')
-%        logs{ii}.secondary_qptime = -1*ones(size(logs{ii}.cputime));
-%        logs{ii}.secondary_error_sol = nan; 
-%     end
-% end
+%% plot results
 
 SAVEFIGS = 0;
     
@@ -91,25 +74,3 @@ if SAVEFIGS
 end
 
 calculate_tolerances(logs)
-
-% if SAVEFIGS
-%     exportfig([PATH 'foms_max_M' num2str(NM) '_T' num2str(TOL) '.pdf'])
-% end
-
-% plot_secondary_logs(logs, 'max', true, [], [10 80], [0 ylim_max])
-% 
-% if SAVEFIGS
-%     exportfig([PATH 'foms_max_log_M' num2str(NM) '.pdf'])
-% end
-
-% plot_secondary_logs(logs, 'av', false, [], [10 80], [0 ylim_av])
-% 
-% if SAVEFIGS
-%     exportfig([PATH 'foms_av_M' num2str(NM) '_T' num2str(TOL) '.pdf'])
-% end
-% 
-% % plot_secondary_logs(logs, 'av', true, [], [10 80], [0 ylim_av])
-% % 
-% % if SAVEFIGS
-% %     exportfig([PATH 'foms_av_log_M' num2str(NM) '.pdf'])
-% end
