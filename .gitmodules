@@ -16,3 +16,6 @@
 [submodule "external/acado-dev"]
 	path = external/acado-dev
 	url = https://github.com/dkouzoup/acado.git
+[submodule "external/acados"]
+	path = external/acados
+	url = https://github.com/dkouzoup/acados.git

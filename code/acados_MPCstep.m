@@ -9,12 +9,14 @@ nlp = input.nlp;
 nlp.set_field('lbx', 0, input.x0');
 nlp.set_field('ubx', 0, input.x0');
 
-% NOTE: provide initial guess at first call
-if input.time == 0
-    sol = nlp.solve(input.x0', zeros(3, 1));
-else
-    sol = nlp.solve();    
+N = size(input.u, 1);
+
+for ii = 1:N
+    nlp.set_init_at_stage(input.x(ii,:)', input.u(ii,:)', ii-1); 
 end
+nlp.set_init_at_stage(input.x(N+1, :)', [], N); 
+
+sol = nlp.solve();    
 
 x_sol = sol.states();
 u_sol = sol.controls();

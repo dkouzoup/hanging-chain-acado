@@ -28,7 +28,7 @@ MPC_COMPILE = 1;            % compile exported code for ACADO solver
 
 NRUNS       = 5;            % run closed-loop simulation NRUNS times and store minimum timings (to minimize OS interference)
 
-SOLVER      = 'HPMPC_B10'; % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC', 'dfgm', 'osqp', 'fiordos'
+SOLVER      = 'acados_qpOASES_e_N2'; % 'qpDUNES_BXX' (with XX block size, 0 for clipping), 'qpOASES_N2', 'qpOASES_e_N3', 'qpOASES_e_N2', 'qpOASES_N3', 'FORCES', 'HPMPC', 'dfgm', 'osqp', 'fiordos'
 
 WARMSTART   = 0;            % applicable for qpOASES/qpDUNES
 
@@ -511,6 +511,15 @@ for iRUNS = 1:NRUNS
             ref_sol_err(iter+1, iRUNS) = sol_err;
             ref_val_err(iter+1, iRUNS) = val_err;
 
+            if ref_output.info.status ~= 1 &&  ref_output.info.status ~= 0
+                if time(end) < To
+                    warning('REF SOLVER FAILED WHILE DISTURBANCE IS BEING APPLIED!')
+                else
+                    warning('REF SOLVER FAILED!')
+                end
+                keyboard    
+            end
+
             % save(['ws_' SOLVER '_N' num2str(length(time))], 'input', 'output', 'ref_output', 'sol_err');
         end
 
@@ -552,15 +561,9 @@ for iRUNS = 1:NRUNS
         % Save the MPC step
         controls_MPC = [controls_MPC; output.u(1,:)];
 
-        % Optionally shift trajectories
-        if ~ACADOS_BENCHMARK
-            input.x = [output.x(2:end,:); output.x(end,:)];
-            input.u = [output.u(2:end,:); output.u(end,:)];
-        else
-            % default init. in acados
-            input.x = output.x;
-            input.u = output.u;
-        end
+        % Shift trajectories
+        input.x = [output.x(2:end,:); output.x(end,:)];
+        input.u = [output.u(2:end,:); output.u(end,:)];
 
         % Simulate system
         sim_input.x = state_sim(end,:).';
