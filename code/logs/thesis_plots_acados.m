@@ -3,7 +3,7 @@ clear all; %close all; clc
 
 PATH = '~/Documents/Repositories/GIT/thesis/image/qpstory/';
 LA   = 'HP';
-NM   = 9;
+NM   = 5;
 
 load(['acados_M' num2str(NM) '_' LA '.mat']);
 
@@ -30,6 +30,7 @@ switch NM
     otherwise
         ylim_max = 200;
 end
+
 xlim_max = 80;
 
 acados = zeros(length(logs),1);
@@ -60,4 +61,4 @@ if SAVEFIGS
     exportfig([PATH 'acados_M' num2str(NM) '_' LA '_log.pdf'])
 end
 
-calculate_tolerances(logs)
+% calculate_tolerances(logs)

@@ -1,16 +1,18 @@
 function [FHANDLE] = plot_timings(logs, FADED, MODE, LOGSCALE, FHANDLE, xlims, ylims, FULL_RTI_TIMINGS)
 
-% PLOT_LOGS     plot performance of QP solvers as a function of prediction
+% PLOT_TIMINGS  plot performance of QP solvers as a function of prediction
 %               horizon N.
 %
 % INPUTS:
 %
-% logs          logged data from simulation (cell array)
-% FADED         set to true to plot solver curves faded (boolean)
-% MODE          'max' or 'av' to plot worst-case or average timings
-% FHANDLE       pass existing figure handle to get multiple logs in on plot
-% xlims         optional limits to x axis
-% ylims         optional limits to y axis
+% logs             logged data from simulation (cell array)
+% FADED            set to true to plot solver curves faded (boolean)
+% MODE             'max' or 'av' to plot worst-case or average timings
+% LOGSCALE         plot log-log scale
+% FHANDLE          pass existing figure handle to get multiple logs in one
+% xlims            optional limits to x axis
+% ylims            optional limits to y axis
+% FULL_RTI_TIMINGS plot full RTI time instead of only QP time (for comparison with acados) 
 
 
 %% default values for inputs
@@ -76,6 +78,7 @@ for ii = 1:nexp
     data(kk).y = [data(kk).y min(cputimings, [], 2)];
   
 end
+
 
 for kk = 1:length(data)
     if strcmp(MODE, 'max')
@@ -209,6 +212,9 @@ function solver_name_latex = set_up_solver_name(solver)
 solver_name_latex = solver;
 
 solver_name_latex(solver_name_latex == '_') = ' ';
+if contains(solver_name_latex, 'qpOASES e')
+    solver_name_latex = replace(solver_name_latex, 'qpOASES e', 'qpOASES emb.');    
+end
 if contains(solver_name_latex, 'qpOASES')
     solver_name_latex = replace(solver_name_latex, 'N', 'C$N^');
     solver_name_latex(end+1) = '$';
@@ -222,7 +228,11 @@ if strcmp(solver_name_latex, 'qpDUNES B0')
     solver_name_latex = 'qpDUNES';
 end
 
-if contains(solver_name_latex, 'HPMPC B') || contains(solver_name_latex, 'qpDUNES B')
+if strcmp(solver_name_latex, 'HPIPM B0')
+    solver_name_latex = 'HPIPM';
+end
+
+if contains(solver_name_latex, 'HPMPC B') || contains(solver_name_latex, 'qpDUNES B') || contains(solver_name_latex, 'HPIPM B')
     solver_name_latex = [solver_name_latex(1:strfind(solver_name_latex, 'B')-1) 'PC'];
     % solver_name_latex = replace(solver_name_latex, 'B', 'B$_{');
     % solver_name_latex(end+1:end+2) = '}$';
@@ -234,6 +244,13 @@ end
 
 if strcmp(solver_name_latex, 'osqp')
     solver_name_latex = 'OSQP';
+end
+
+% hack to temporarily add 'ACADO' in front of solver name
+if 0
+    if ~contains(solver_name_latex, 'acados')
+        solver_name_latex = ['ACADO ' solver_name_latex];
+    end
 end
 
 end
